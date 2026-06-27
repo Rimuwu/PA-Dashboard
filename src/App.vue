@@ -130,6 +130,7 @@ const canvasRef = ref(null);
 const canvasOffset = ref({ x: 100, y: 100 });
 const canvasZoom = ref(0.9);
 const isPanning = ref(false);
+const isResizingArea = ref(false);
 const panStart = ref({ x: 0, y: 0 });
 
 // Localization
@@ -230,45 +231,68 @@ const getConnPos2D = (conn, stackUuid, defaultX, defaultY = 0) => {
 };
 
 // Set 2D position for a stack
-const setConnPos2D = (conn, stackUuid, x, y) => {
+const setConnPos2D = (conn, stackUuid, x, y, skipSave = false) => {
   if (!conn || !conn.settings) return;
   if (!conn.settings.positions) conn.settings.positions = {};
   conn.settings.positions[stackUuid] = { x: Number(x), y: Number(y) };
-  saveToLocalStorage();
+  if (!skipSave) {
+    saveToLocalStorage();
+  }
 };
 
 // Dragging state for 2D canvas tokens
-const canvasDragState = ref(null); // { conn, stackUuid, startMx, startMy, startX, startY, teamSide }
+const canvasDragState = ref(null); // { conn, stackUuid, offsetX, offsetY, rect, teamSide }
 
 const startTokenDrag = (e, conn, stackUuid, pos2d, teamSide) => {
   e.preventDefault();
   const el = e.currentTarget.closest('.bf-canvas-wrap');
   if (!el) return;
+  const rect = el.getBoundingClientRect();
+  const dist = conn.settings.initialDistance || 300;
+  const totalWidth = dist * 2 + 300;
+  
+  // Calculate current click coordinates in game space
+  const clickMx = e.clientX - rect.left;
+  const clickMy = e.clientY - rect.top;
+  const clickXGame = (clickMx / rect.width) * totalWidth - dist - 150;
+  const clickYGame = (clickMy / rect.height) * 200 - 100;
+  
+  // click offset relative to token's stored coordinates
+  const offsetX = clickXGame - pos2d.x;
+  const offsetY = clickYGame - pos2d.y;
+
   canvasDragState.value = {
-    conn, stackUuid, teamSide,
-    startMx: e.clientX, startMy: e.clientY,
-    startX: pos2d.x, startY: pos2d.y,
-    rect: el.getBoundingClientRect()
+    conn, stackUuid, teamSide, offsetX, offsetY, rect
   };
+  
   const onMove = (me) => {
     const s = canvasDragState.value;
     if (!s) return;
-    const dist = s.conn.settings.initialDistance || 300;
+    const distVal = s.conn.settings.initialDistance || 300;
+    const totalW = distVal * 2 + 300;
     const W = s.rect.width;
     const H = s.rect.height;
-    const pxPerUnit = W / (dist * 2 + 300);
-    const dx = (me.clientX - s.startMx) / pxPerUnit;
-    const dy = (me.clientY - s.startMy) / pxPerUnit;
-    let nx = s.startX + dx;
-    let ny = s.startY + dy;
-    // Clamp: team A left half, team B right half
-    if (s.teamSide === 'A') nx = Math.min(0, Math.max(-dist, nx));
-    else nx = Math.max(0, Math.min(dist, nx));
+    
+    // Mouse coords relative to canvas bounding box
+    const mx = me.clientX - s.rect.left;
+    const my = me.clientY - s.rect.top;
+    
+    // Project back to game units, subtracting initial click offset
+    let nx = (mx / W) * totalW - distVal - 150 - s.offsetX;
+    let ny = (my / H) * 200 - 100 - s.offsetY;
+    
+    // Clamp: team A left half (x <= 0), team B right half (x >= 0)
+    if (s.teamSide === 'A') nx = Math.min(0, Math.max(-distVal, nx));
+    else nx = Math.max(0, Math.min(distVal, nx));
     ny = Math.max(-100, Math.min(100, ny));
-    setConnPos2D(s.conn, s.stackUuid, Math.round(nx), Math.round(ny));
+    
+    // Pass skipSave=true during mousemove for perfect smooth dragging!
+    setConnPos2D(s.conn, s.stackUuid, Math.round(nx), Math.round(ny), true);
   };
+  
   const onUp = () => {
     canvasDragState.value = null;
+    saveToLocalStorage(); // save final positions on drag end
     window.removeEventListener('mousemove', onMove);
     window.removeEventListener('mouseup', onUp);
   };
@@ -313,18 +337,47 @@ const getUnitTopPercent = (y) => {
   return Math.max(5, Math.min(95, pct));
 };
 
-// SVG range circle for a unit (used in bf2d-svg)
-const getSvgRangeCircle = (ux, uy, range, trackW, trackH) => {
-  if (!animSim.value) return null;
-  const connUuid = animSim.value.connUuid;
-  const conn = connections.value.find(c => c.uuid === connUuid);
+// Track container width and ref for SVG layout
+const bfTrack = ref(null);
+const trackWidth = ref(472);
+
+// Update track width when simulated battlefield modal loads
+watch(() => animSim.value, async (newVal) => {
+  if (newVal) {
+    await nextTick();
+    if (bfTrack.value) {
+      trackWidth.value = bfTrack.value.clientWidth || 472;
+    }
+  }
+});
+
+// Update width on window resize
+const updateTrackWidth = () => {
+  if (bfTrack.value) {
+    trackWidth.value = bfTrack.value.clientWidth || 472;
+  }
+};
+onMounted(() => {
+  window.addEventListener('resize', updateTrackWidth);
+});
+
+// Get absolute horizontal X coordinate in SVG viewBox space
+const getSvgX = (x) => {
+  return (getUnitLeftPercent(x) / 100) * trackWidth.value;
+};
+
+// Get absolute vertical Y coordinate in SVG viewBox space
+const getSvgY = (y) => {
+  return (getUnitTopPercent(y) / 100) * 220;
+};
+
+// Get SVG circle radius for weapon range (using horizontal scale to prevent oval distortion)
+const getSvgRange = (range) => {
+  if (!animSim.value) return 0;
+  const conn = connections.value.find(c => c.uuid === animSim.value.connUuid);
   const dist = conn?.settings?.initialDistance || simSettings.value.initialDistance || 300;
-  const minX = -(dist + 150); const maxX = dist + 150;
-  const cx = ((ux - minX) / (maxX - minX)) * trackW;
-  const cy = (((uy + 100) / 200) * 80 + 10) / 100 * trackH;
-  const rx = (range / (maxX - minX)) * trackW;
-  const ry = (range / 200) * trackH * 0.8;
-  return { cx, cy, rx, ry };
+  const totalWidth = dist * 2 + 300;
+  return (range / totalWidth) * trackWidth.value;
 };
 
 const isShowRangesEnabled = computed(() => {
@@ -898,6 +951,26 @@ const triggerFileInput = () => {
 
 // Save and Load from LocalStorage
 const saveToLocalStorage = () => {
+  // Create a version of simulationResults without ticks to save space and avoid localStorage quota limit
+  const cleanSimResults = {};
+  if (simulationResults.value) {
+    for (const [uuid, res] of Object.entries(simulationResults.value)) {
+      if (res) {
+        cleanSimResults[uuid] = {
+          winner: res.winner,
+          time: res.time,
+          totalMaxHpA: res.totalMaxHpA,
+          totalMaxHpB: res.totalMaxHpB,
+          resultText: res.resultText,
+          remainingHpPercent: res.remainingHpPercent,
+          remainingCount: res.remainingCount,
+          a: res.a,
+          b: res.b
+        };
+      }
+    }
+  }
+
   localStorage.setItem('pa_canvas_layout_data', JSON.stringify({
     placedUnits: placedUnits.value,
     groupAreas: groupAreas.value,
@@ -907,7 +980,8 @@ const saveToLocalStorage = () => {
     lang: lang.value,
     gridEnabled: gridEnabled.value,
     snapToGrid: snapToGrid.value,
-    simulationResults: simulationResults.value
+    simulationResults: cleanSimResults,
+    simSettings: simSettings.value
   }));
 };
 
@@ -918,13 +992,25 @@ const loadFromLocalStorage = () => {
       const data = JSON.parse(raw);
       if (Array.isArray(data.placedUnits)) placedUnits.value = data.placedUnits;
       if (Array.isArray(data.groupAreas)) groupAreas.value = data.groupAreas;
-      if (Array.isArray(data.connections)) connections.value = data.connections;
+      if (Array.isArray(data.connections)) {
+        connections.value = data.connections.map(c => {
+          if (!c.settings) {
+            c.settings = {
+              initialDistance: 300,
+              showRanges: false,
+              positions: {}
+            };
+          }
+          return c;
+        });
+      }
       if (data.canvasOffset) canvasOffset.value = data.canvasOffset;
       if (data.canvasZoom) canvasZoom.value = data.canvasZoom;
       if (data.lang) lang.value = data.lang;
       if (data.gridEnabled !== undefined) gridEnabled.value = data.gridEnabled;
       if (data.snapToGrid !== undefined) snapToGrid.value = data.snapToGrid;
       if (data.simulationResults) simulationResults.value = data.simulationResults;
+      if (data.simSettings) simSettings.value = { ...simSettings.value, ...data.simSettings };
     } catch (e) {
       console.error("Failed to load layout from local storage:", e);
     }
@@ -1179,6 +1265,7 @@ const startResizeArea = (area, e) => {
   const startHeight = area.height || 260;
   const startX = e.clientX;
   const startY = e.clientY;
+  isResizingArea.value = true;
   
   const onMouseMove = (moveEvent) => {
     const dx = (moveEvent.clientX - startX) / canvasZoom.value;
@@ -1192,6 +1279,7 @@ const startResizeArea = (area, e) => {
   const onMouseUp = () => {
     window.removeEventListener('mousemove', onMouseMove);
     window.removeEventListener('mouseup', onMouseUp);
+    isResizingArea.value = false;
     saveToLocalStorage();
   };
   
@@ -1995,6 +2083,17 @@ onMounted(() => {
 });
 
 watch([placedUnits, groupAreas, connections], () => {
+  if (
+    isPanning.value ||
+    isSelecting.value ||
+    activeDragCard.value ||
+    activeDragArea.value ||
+    activeConnectionDrag.value ||
+    canvasDragState.value ||
+    isResizingArea.value
+  ) {
+    return; // Skip saving to localStorage on mousemove to maintain 60fps dragging
+  }
   saveToLocalStorage();
 }, { deep: true });
 
@@ -2490,13 +2589,7 @@ const vFocus = {
                 <Palette :size="12" />
               </button>
 
-              <!-- Layer indicator -->
-              <span 
-                style="font-family: var(--font-title); font-size: 0.6rem; color: var(--color-cyan); background: rgba(0, 243, 255, 0.08); border: 1px solid rgba(0, 243, 255, 0.2); padding: 2px 4px; border-radius: 2px; text-transform: uppercase; margin-right: 4px; white-space: nowrap;"
-                :title="lang === 'ru' ? 'Порядок слоя (Z-Index)' : 'Layer Order (Z-Index)'"
-              >
-                {{ lang === 'ru' ? 'Слой' : 'Layer' }}: {{ placed.zIndex || 10 }}
-              </span>
+
 
               <!-- Overlapping warning icon -->
               <div 
@@ -2534,18 +2627,7 @@ const vFocus = {
                   {{ getUnitById(placed.unitId)?.tier || 'T1' }}
                 </span>
               </div>
-              <!-- Unit layer badges -->
-              <div class="stat-row-tags" v-if="getUnitById(placed.unitId)?.layers?.length">
-                <span class="stat-label">{{ lang === 'ru' ? 'Слой' : 'Layer' }}:</span>
-                <div class="tags-wrap">
-                  <span 
-                    v-for="lyr in getUnitById(placed.unitId).layers" 
-                    :key="lyr"
-                    class="layer-badge"
-                    :class="'layer-' + lyr.toLowerCase()"
-                  >{{ t(lyr) }}</span>
-                </div>
-              </div>
+
               <!-- Target type badges -->
               <div class="stat-row-tags" v-if="getUnitById(placed.unitId)?.target_labels?.length">
                 <span class="stat-label">{{ lang === 'ru' ? 'Цели' : 'Targets' }}:</span>
@@ -2562,6 +2644,11 @@ const vFocus = {
               <div class="stat-row" v-if="getUnitById(placed.unitId)?.weapons?.length">
                 <span class="stat-label">{{ lang === 'ru' ? 'Ск. атаки' : 'Atk/s' }}:</span>
                 <span class="stat-value">{{ getUnitById(placed.unitId).weapons.map(w => w.rate_of_fire.toFixed(2)).join(' / ') }}</span>
+              </div>
+              <!-- Repair rate for builders -->
+              <div class="stat-row" v-if="getUnitById(placed.unitId)?.is_builder && getUnitById(placed.unitId)?.build_metal_rate">
+                <span class="stat-label">{{ lang === 'ru' ? 'Ремонт' : 'Repair' }}:</span>
+                <span class="stat-value" style="color: #34d399;">{{ getUnitById(placed.unitId).build_metal_rate }} m/s</span>
               </div>
               
               <!-- Quantity Controller -->
@@ -2911,25 +2998,25 @@ const vFocus = {
             <div class="bf2d-grid"></div>
 
             <!-- SVG layer: fire lines + range ellipses -->
-            <svg class="bf2d-svg" :key="'svg-' + animSim.currentTickIndex">
+            <svg class="bf2d-svg" :viewBox="'0 0 ' + trackWidth + ' 220'" :key="'svg-' + animSim.currentTickIndex">
               <!-- Range ellipses -->
               <template v-if="isShowRangesEnabled">
                 <ellipse
                   v-for="u in animCurrentTick.aUnits" :key="'re-a-' + u.id"
                   class="bf2d-range-circle team-a"
-                  :cx="`${getUnitLeftPercent(u.x)}%`"
-                  :cy="`${getUnitTopPercent(u.y || 0)}%`"
-                  :rx="`${(u.maxRange / 900) * 46}%`"
-                  :ry="`${(u.maxRange / 200) * 35}%`"
+                  :cx="getSvgX(u.x)"
+                  :cy="getSvgY(u.y || 0)"
+                  :rx="getSvgRange(u.maxRange)"
+                  :ry="getSvgRange(u.maxRange)"
                   stroke-width="1"
                 />
                 <ellipse
                   v-for="u in animCurrentTick.bUnits" :key="'re-b-' + u.id"
                   class="bf2d-range-circle team-b"
-                  :cx="`${getUnitLeftPercent(u.x)}%`"
-                  :cy="`${getUnitTopPercent(u.y || 0)}%`"
-                  :rx="`${(u.maxRange / 900) * 46}%`"
-                  :ry="`${(u.maxRange / 200) * 35}%`"
+                  :cx="getSvgX(u.x)"
+                  :cy="getSvgY(u.y || 0)"
+                  :rx="getSvgRange(u.maxRange)"
+                  :ry="getSvgRange(u.maxRange)"
                   stroke-width="1"
                 />
               </template>
@@ -2939,10 +3026,10 @@ const vFocus = {
                 <line
                   v-if="u.firingAt && animCurrentTick.bUnits.find(t => t.id === u.firingAt)"
                   class="bf2d-shot-line team-a"
-                  :x1="`${getUnitLeftPercent(u.x)}%`"
-                  :y1="`${getUnitTopPercent(u.y || 0)}%`"
-                  :x2="`${getUnitLeftPercent(animCurrentTick.bUnits.find(t => t.id === u.firingAt).x)}%`"
-                  :y2="`${getUnitTopPercent(animCurrentTick.bUnits.find(t => t.id === u.firingAt).y || 0)}%`"
+                  :x1="getSvgX(u.x)"
+                  :y1="getSvgY(u.y || 0)"
+                  :x2="getSvgX(animCurrentTick.bUnits.find(t => t.id === u.firingAt).x)"
+                  :y2="getSvgY(animCurrentTick.bUnits.find(t => t.id === u.firingAt).y || 0)"
                   stroke-width="1.5"
                 />
               </template>
@@ -2952,10 +3039,10 @@ const vFocus = {
                 <line
                   v-if="u.firingAt && animCurrentTick.aUnits.find(t => t.id === u.firingAt)"
                   class="bf2d-shot-line team-b"
-                  :x1="`${getUnitLeftPercent(u.x)}%`"
-                  :y1="`${getUnitTopPercent(u.y || 0)}%`"
-                  :x2="`${getUnitLeftPercent(animCurrentTick.aUnits.find(t => t.id === u.firingAt).x)}%`"
-                  :y2="`${getUnitTopPercent(animCurrentTick.aUnits.find(t => t.id === u.firingAt).y || 0)}%`"
+                  :x1="getSvgX(u.x)"
+                  :y1="getSvgY(u.y || 0)"
+                  :x2="getSvgX(animCurrentTick.aUnits.find(t => t.id === u.firingAt).x)"
+                  :y2="getSvgY(animCurrentTick.aUnits.find(t => t.id === u.firingAt).y || 0)"
                   stroke-width="1.5"
                 />
               </template>
@@ -3125,11 +3212,7 @@ const vFocus = {
             {{ getUnitDesc(unitDetailSpec) }}
           </div>
 
-          <!-- Unit layers -->
-          <div v-if="unitDetailSpec.layers?.length" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-            <span style="font-size:0.72rem; color:var(--text-dim); font-weight:bold;">{{ lang === 'ru' ? 'Слой юнита:' : 'Unit Layer:' }}</span>
-            <span v-for="lyr in unitDetailSpec.layers" :key="lyr" class="layer-badge" :class="'layer-' + lyr.toLowerCase()">{{ t(lyr) }}</span>
-          </div>
+
 
           <!-- Base Stats Grid -->
           <div>
@@ -3169,6 +3252,10 @@ const vFocus = {
               <div class="stat-card" v-if="unitDetailSpec.radar_radius">
                 <span class="stat-card-label">{{ lang === 'ru' ? 'Радиус радара' : 'Radar Radius' }}</span>
                 <span class="stat-card-val">{{ unitDetailSpec.radar_radius }}</span>
+              </div>
+              <div class="stat-card" v-if="unitDetailSpec.is_builder && unitDetailSpec.build_metal_rate">
+                <span class="stat-card-label">{{ lang === 'ru' ? 'Скорость ремонта' : 'Repair Rate' }}</span>
+                <span class="stat-card-val" style="color: #34d399;">{{ unitDetailSpec.build_metal_rate }} <span style="font-size:0.6rem;opacity:0.7;">m/s</span></span>
               </div>
             </div>
           </div>
@@ -3300,14 +3387,14 @@ const vFocus = {
     </div>
 
     <!-- Connection Settings Modal -->
-    <div v-if="showConnectionSettingsModal && activeEditingConnection" class="modal-overlay" @click="showConnectionSettingsModal = false">
-      <div class="modal-content" @click.stop style="width: 640px; max-height: 90vh; display: flex; flex-direction: column;">
+    <div v-if="showConnectionSettingsModal && activeEditingConnection" class="modal-overlay" @click="() => { showConnectionSettingsModal = false; saveToLocalStorage(); }">
+      <div class="modal-content" @click.stop style="width: min(80vw, 1200px); max-height: 90vh; display: flex; flex-direction: column;">
         <div class="modal-header">
           <h3 class="modal-title" style="display:flex; align-items:center; gap:8px;">
             <Settings :size="16" style="color:var(--color-cyan);" />
             {{ lang === 'ru' ? 'Настройки связи' : 'Connection Settings' }}
           </h3>
-          <button class="close-btn" @click="showConnectionSettingsModal = false"><X :size="18" /></button>
+          <button class="close-btn" @click="() => { showConnectionSettingsModal = false; saveToLocalStorage(); }"><X :size="18" /></button>
         </div>
 
         <div class="modal-body" style="overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px;">
@@ -3415,7 +3502,7 @@ const vFocus = {
         </div>
 
         <div style="display:flex; justify-content:flex-end; padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.06);">
-          <button class="btn btn-secondary" @click="showConnectionSettingsModal = false">
+          <button class="btn btn-secondary" @click="() => { showConnectionSettingsModal = false; saveToLocalStorage(); }">
             {{ lang === 'ru' ? 'Готово' : 'Done' }}
           </button>
         </div>

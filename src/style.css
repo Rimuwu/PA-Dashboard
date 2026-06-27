@@ -1668,11 +1668,6 @@ h1, h2, h3, h4, .font-orbitron {
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 6px;
   padding: 12px;
-  transition: border-color 0.2s ease;
-}
-
-.weapon-detail-card:hover {
-  border-color: rgba(0, 240, 255, 0.3);
 }
 
 .setting-row {
@@ -1758,12 +1753,10 @@ h1, h2, h3, h4, .font-orbitron {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  transition: all 0.2s ease;
 }
 
 .weapon-detail-card:hover {
   background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(0, 240, 255, 0.2);
 }
 
 /* ========== Flight Type Badge ========== */
@@ -1805,55 +1798,7 @@ h1, h2, h3, h4, .font-orbitron {
   opacity: 0.7;
 }
 
-/* ========== Layer Badges ========== */
-.layer-badge {
-  display: inline-flex;
-  align-items: center;
-  font-size: 0.6rem;
-  padding: 1px 5px;
-  border-radius: 3px;
-  font-family: var(--font-title);
-  text-transform: uppercase;
-  font-weight: bold;
-  letter-spacing: 0.03em;
-  white-space: nowrap;
-}
 
-.layer-wl_air {
-  background: rgba(14, 165, 233, 0.15);
-  color: #38bdf8;
-  border: 1px solid rgba(14, 165, 233, 0.3);
-}
-
-.layer-wl_landhorizontal {
-  background: rgba(234, 179, 8, 0.15);
-  color: #fde047;
-  border: 1px solid rgba(234, 179, 8, 0.3);
-}
-
-.layer-wl_watersurface {
-  background: rgba(59, 130, 246, 0.15);
-  color: #60a5fa;
-  border: 1px solid rgba(59, 130, 246, 0.3);
-}
-
-.layer-wl_orbital {
-  background: rgba(168, 85, 247, 0.15);
-  color: #c084fc;
-  border: 1px solid rgba(168, 85, 247, 0.3);
-}
-
-.layer-wl_seafloor {
-  background: rgba(20, 184, 166, 0.15);
-  color: #2dd4bf;
-  border: 1px solid rgba(20, 184, 166, 0.3);
-}
-
-.layer-wl_underwater {
-  background: rgba(79, 70, 229, 0.15);
-  color: #818cf8;
-  border: 1px solid rgba(79, 70, 229, 0.3);
-}
 
 /* ========== Battlefield Track ========== */
 .battlefield-track {
@@ -2022,7 +1967,7 @@ h1, h2, h3, h4, .font-orbitron {
 .bf-canvas-wrap {
   position: relative;
   width: 100%;
-  height: 280px;
+  height: 360px;
   background: radial-gradient(ellipse at center, rgba(0, 243, 255, 0.03) 0%, rgba(0,0,0,0) 70%), 
               rgba(0, 0, 0, 0.35);
   border: 1px solid rgba(255, 255, 255, 0.07);

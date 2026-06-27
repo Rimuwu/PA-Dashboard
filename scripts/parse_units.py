@@ -350,10 +350,27 @@ def main():
 
         is_factory = "UNITTYPE_Factory" in unit_types or buildable_types is not None
 
-        # ── Build time (from factory queue hint) ────────────────
-        build_time = spec.get('build_time_per_unit', 0) or spec.get('build_metal_cost', cost)
+        # ── command_caps & Builder detection ──────────────────────
+        command_caps = spec.get('command_caps', [])
+        is_builder = 'ORDER_Repair' in command_caps
 
-        # ── Own layers ─────────────────────────────────────────
+        # ── Build metal rate (repair HP/s proxy) ───────────────────
+        # Builders have a BuildArm tool; construction_demand.metal = metal/s
+        build_metal_rate = 0
+        if is_builder or 'ORDER_Build' in command_caps:
+            for tool_entry in spec.get('tools', []):
+                t_spec_path = tool_entry.get('spec_id')
+                if not t_spec_path:
+                    continue
+                t_spec = resolve_spec(t_spec_path)
+                if not t_spec:
+                    continue
+                tt = t_spec.get('tool_type', '')
+                if tt == 'TOOL_BuildArm':
+                    cd = t_spec.get('construction_demand', {})
+                    build_metal_rate = cd.get('metal', 0)
+                    break
+        # ── Own movement layers ────────────────────────────────────
         layers = []
         if "UNITTYPE_Air" in unit_types:
             layers.append("WL_Air")
@@ -376,6 +393,8 @@ def main():
             'category':         category,
             'unit_types':       unit_types,
             'is_factory':       is_factory,
+            'is_builder':       is_builder,
+            'build_metal_rate': build_metal_rate,
             'buildable_types':  buildable_types,
             'weapons':          weapons,
             'dps':              total_dps,
