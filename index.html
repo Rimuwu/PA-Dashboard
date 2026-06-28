@@ -2,10 +2,79 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="An interactive comparison canvas for units and structures in Planetary Annihilation Titans. Compare unit stats, simulate battles in real-time, and spawn builders." />
     <title>PA: Titans - Unit Comparison Canvas</title>
+
+    <style>
+      /* Стили для заглушки мобильной версии */
+      .mobile-fallback {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: #2e2e2e;
+        color: #ffffff;
+        font-family: sans-serif;
+        text-align: center;
+        padding: 20px;
+        box-sizing: border-box;
+        z-index: 99999;
+      }
+      .mobile-fallback h1 {
+        font-size: 24px;
+        margin-bottom: 10px;
+      }
+      .mobile-fallback p {
+        font-size: 16px;
+        color: #cccccc;
+        margin-bottom: 20px;
+      }
+      .mobile-fallback .github-btn {
+        display: inline-block;
+        padding: 12px 24px;
+        background-color: #24292e;
+        color: #ffffff;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: bold;
+        border: 1px solid #444;
+        transition: background-color 0.2s;
+      }
+      .mobile-fallback .github-btn:hover {
+        background-color: #555;
+      }
+    </style>
+
+    <script type="module">
+      // Проверка на мобильное устройство (ширина экрана < 768px или мобильный User-Agent)
+      const isMobile = window.innerWidth < 768 || /Mobi|Android|iPhone/i.test(navigator.userAgent);
+
+      if (isMobile) {
+        // Останавливаем парсинг и подменяем контент, как только DOM будет готов
+        document.addEventListener("DOMContentLoaded", () => {
+          document.body.innerHTML = `
+            <div class="mobile-fallback">
+              <h1>Desktop Only</h1>
+              <p>This comparison canvas is optimized for larger screens. Please open it on your PC.</p>
+              <a href="https://github.com/Rimuwu/PA-Dashboard" target="_blank" rel="noopener noreferrer" class="github-btn">
+                View on GitHub
+              </a>
+            </div>
+          `;
+        });
+        
+        // Выбрасываем ошибку, чтобы остановить выполнение текущего/последующих ES-модулей, 
+        // если они попробуют инициализироваться до DOMContentLoaded
+        throw new Error("Mobile device detected. Application loading halted.");
+      }
+    </script>
   </head>
   <body>
     <div id="app"></div>

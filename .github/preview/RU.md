@@ -4,11 +4,11 @@
 
 ---
 
-# 🛰️ PA: Dashboard — Интерактивная Панель и Симулятор Сражений (Planetary Annihilation)
+# 🛰️ PA: Dashboard — Интерактивная Панель и Симулятор Сражений
 
 ![General Preview](./general.png)
 
-Аналитический инструмент и тактический симулятор для игры **Planetary Annihilation: TITANS**. Проект разработан с использованием **Vue 3**, **Vite** и **Vanilla CSS**, обеспечивая высокую производительность и плавные анимации.
+Аналитический инструмент и тактический симулятор для игры **Planetary Annihilation: TITANS**.
 
 Демо: https://rimuwu.github.io/PA-Dashboard/
 

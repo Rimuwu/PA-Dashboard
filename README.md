@@ -4,11 +4,11 @@
 
 ---
 
-# 🛰️ PA: Dashboard — Interactive Canvas & Combat Simulator (Planetary Annihilation)
+# 🛰️ PA: Dashboard — Interactive Canvas & Combat Simulator
 
 ![General Preview](.github/preview/general.png)
 
-An analytical tool and tactical combat simulator for **Planetary Annihilation: TITANS**. Built using **Vue 3**, **Vite**, and **Vanilla CSS** to deliver exceptional performance and fluid animations.
+An analytical tool and tactical combat simulator for **Planetary Annihilation: TITANS**.
 
 Demo: https://rimuwu.github.io/PA-Dashboard/
 
