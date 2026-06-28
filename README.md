@@ -1,75 +1,94 @@
-# 🛰️ PA: Dashboard — Интерактивная Панель и Симулятор Сражений (Planetary Annihilation)
-
-Аналитический инструмент и тактический симулятор для игры **Planetary Annihilation: TITANS**. Проект разработан с использованием **Vue 3**, **Vite** и **Vanilla CSS**, обеспечивая высокую производительность и плавные анимации.
-
-Демо: https://rimuwu.github.io/PA-Dashboard/
----
-
-## 🚀 Основные Возможности
-
-### 1. 🗺️ Интерактивный Холст (Canvas)
-* **Бесконечная сетка**: Масштабирование (Zoom) и панорамирование (Pan) с помощью мыши.
-* **Гибкая сетка**: Привязка к сетке (Grid Snapping) для точного выравнивания.
-* **Выделение рамкой (Marquee)**: Быстрое групповое выделение карт рамкой.
-* **Групповые области (Group Areas)**: Объединяйте юнитов в отряды, изменяйте размеры областей, отслеживайте их суммарные показатели.
-* **Связи (Connections)**: Стройте связи между карточками или группами для моделирования противостояний.
-
-### 2. ⚔️ Симулятор Сражений (Combat Simulator)
-* **Пошаговая симуляция**: Честный расчет боя с учетом скоростей хода, дальности стрельбы, скорострельности оружия и слоев атаки (земля, воздух, вода, орбита).
-* **Анимированное воспроизведение**: Проигрывание боя с таймлайном, логами попаданий и списком выживших.
-* **Подбор противодействия (Counter Matchmaker)**: Быстрый умный алгоритм (оптимизирован бинарным поиском и FastMode) подберет минимально необходимое количество юнитов для победы над выбранным отрядом.
-
-### 3. ⏱️ Временная шкала построек (Build Order Timeline)
-* **Свободный перенос (Seamless Drag & Drop)**: Перетаскивайте карточки юнитов с доски прямо в минуты временной шкалы и обратно без скачков.
-* **Авто-масштабирование колонок**: Колонки автоматически увеличивают размер (ширину и высоту), чтобы вместить помещенные карточки.
-* **Умный сдвиг времени**: При изменении минуты одной из колонок все последующие автоматически сдвигаются на 1 минуту вперед для сохранения порядка.
-* **Калькулятор ресурсов**: Отображает затраты Металла и Энергии на постройку для каждой минуты.
-
-### 4. 📊 Модальные Окна Сравнения и Спецификаций
-* **Сравнение характеристик**: Таблица сравнения с автоматической подсветкой лучших и худших параметров (Tier, стоимость металла, HP, DPS, скорость ремонта, цели, выработка/потребление энергии).
-* **Детальная информация о юните**: Полная карточка юнита с описанием оружия, урона, скорострельности и типов целей.
+<p align="center">
+  <a href=".github/preview/RU.md">🇷🇺 Русский</a> • 🇺🇸 <b>English</b>
+</p>
 
 ---
 
-## 🛠️ Стек Технологий
-* **Фреймворк**: [Vue 3](https://vuejs.org/) (Composition API, `<script setup>`)
-* **Сборщик**: [Vite](https://vite.dev/)
-* **Стилизация**: Vanilla CSS (поддержка темных тонов, неонового свечения, эффекта Glassmorphic и плавных микро-анимаций)
-* **Иконки**: [Lucide Vue Next](https://lucide.dev/)
+# 🛰️ PA: Dashboard — Interactive Canvas & Combat Simulator (Planetary Annihilation)
+
+![General Preview](.github/preview/general.png)
+
+An analytical tool and tactical combat simulator for **Planetary Annihilation: TITANS**. Built using **Vue 3**, **Vite**, and **Vanilla CSS** to deliver exceptional performance and fluid animations.
+
+Demo: https://rimuwu.github.io/PA-Dashboard/
 
 ---
 
-## 🔧 Запуск Проекта
+## 🚀 Key Features
 
-### Требования
-* Установленный **Node.js** (версии 18 или новее)
-* Пакетный менеджер **npm**
+### 1. 🗺️ Interactive Canvas
+* **Infinite Grid**: Smooth zooming and panning using your mouse.
+* **Flexible Grid**: Snap-to-grid functionality for precise component alignment.
+* **Marquee Selection**: Quick multi-card selection using a click-and-drag bounding box.
+* **Group Areas**: Organize units into squads, resize containers, and track aggregate stats automatically.
+* **Connections**: Draw dynamic links between individual cards or groups to map out tactical matchups.
 
-### 1. Установка зависимостей
+![Group Simulation Preview](.github/preview/group-simulation.png)
+
+### 2. ⚔️ Combat Simulator
+* **Tick-by-Tick Simulation**: Highly accurate battle calculations accounting for move speed, weapon range, fire rate, and operational layers (Surface, Air, Underwater, Orbital).
+* **Animated Playback**: Real-time battle playback featuring an interactive timeline, detailed combat logs, and a survivor list.
+* **Counter Matchmaker**: An intelligent, rapid search algorithm (optimized with binary search and FastMode) to find the minimum unit composition needed to defeat a chosen group.
+
+![Simulation Preview](.github/preview/simulation.png)
+![Counter Pick Preview](.github/preview/counter-pick.png)
+
+### 3. ⏱️ Build Order Timeline
+* **Seamless Drag & Drop**: Effortlessly drag unit cards directly from the sidebar canvas right into specific minutes on the timeline and back.
+* **Auto-Scaling Columns**: Timeline columns dynamically adjust their dimensions to seamlessly accommodate added cards.
+* **Smart Time Shifting**: Modifying a column's minute automatically shifts subsequent columns forward by 1 minute to preserve order sequence.
+* **Resource Cost Calculator**: Aggregates and displays exact Metal and Energy production requirements for every minute block.
+
+![Timeline Preview](.github/preview/timeline.png)
+
+### 4. 📊 Comparison & Specification Modals
+* **Unit Stat Comparison**: A comparative matrix featuring automated highlights for optimal and subpar parameters (Tier, metal cost, HP, DPS, build rate, target layers, energy generation/consumption).
+* **Detailed Unit Data**: Full descriptive profiles detailing unit weaponry, damage outputs, firing rates, and targeted layers.
+
+![Comparison Preview](.github/preview/comparison.png)
+![Info Preview](.github/preview/info.png)
+
+---
+
+## 🛠️ Technology Stack
+* **Framework**: [Vue 3](https://vuejs.org/) (Composition API, `<script setup>`)
+* **Build Tool**: [Vite](https://vite.dev/)
+* **Styling**: Vanilla CSS (Featuring dark-mode optimization, neon glowing effects, glassmorphism UI, and fluid micro-interactions)
+* **Icons**: [Lucide Vue Next](https://lucide.dev/)
+
+---
+
+## 🔧 Getting Started
+
+### Prerequisites
+* **Node.js** (Version 18 or newer)
+* **npm** package manager
+
+### 1. Install Dependencies
 ```bash
 npm install
 ```
 
-### 2. Запуск в режиме разработки (Dev Server)
+### 2. Run Development Server
 ```bash
 npm run dev
 ```
-После запуска проект будет доступен в браузере по адресу `http://localhost:5173`.
+Once started, open your browser and navigate to `http://localhost:5173`.
 
-### 3. Сборка для продакшна (Production Build)
+### 3. Build for Production
 ```bash
 npm run build
 ```
-Скомпилированные и оптимизированные файлы появятся в директории `dist/`.
+Optimized and compiled build outputs will be generated inside the `dist/` directory.
 
 ---
 
-## 🎮 Горячие Клавиши и Управление
+## 🎮 Hotkeys & Controls
 
-* **Панорамирование (Pan)**: Зажмите среднюю кнопку мыши (колесо) или левую кнопку мыши на пустом месте холста и перетащите.
-* **Масштаб (Zoom)**: Прокрутка колесиком мыши (Scroll).
-* **Групповое выделение**: Зажмите левую кнопку мыши и растяните прямоугольную рамку.
-* **Выделение поштучно**: Зажмите `Shift` и кликайте по карточкам юнитов.
-* **Копирование**: Правый клик на карте -> *Дублировать карточку*.
-* **Создание связи**: Зажмите мышь на порт справа/слева карточки и протяните к другому юниту/области.
-* **Контекстное меню**: Правый клик на любой карточке, области или пустом месте холста открывает быстрые действия.
+* **Pan Canvas**: Hold Middle Mouse Button (scroll wheel) or Left Mouse Button on empty canvas space and drag.
+* **Zoom Canvas**: Use the mouse scroll wheel.
+* **Marquee Select**: Click and drag Left Mouse Button across empty space to draw a selection window.
+* **Multi-Select**: Hold `Shift` while clicking individual unit cards.
+* **Duplicate Card**: Right-click on a card -> select *Duplicate card*.
+* **Create Link**: Drag from a card connector port (left/right edge) and drop onto another unit or group area.
+* **Context Menu**: Right-click on any card, area, or empty canvas space to access quick action menus.
