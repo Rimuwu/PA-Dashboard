@@ -30,7 +30,7 @@ defineEmits(['close', 'select']);
           :class="{ active: skinCard && (skinCard.skinId === cmd.id || (!skinCard.skinId && skinCard.unitId === cmd.id)) }"
           @click="$emit('select', cmd)"
         >
-          <img :src="cmd.icon" class="skin-img" />
+          <img :src="$getIconUrl(cmd.icon)" class="skin-img" />
           <div class="skin-title">{{ cmd.name }}</div>
         </div>
       </div>

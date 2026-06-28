@@ -71,7 +71,7 @@
     "acceleration": 70,
     "vision_radius": 100,
     "radar_radius": 150,
-    "icon": "/units/pa_units_land_tank_nuke_tank_nuke.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_tank_nuke_tank_nuke.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -137,7 +137,7 @@
     "acceleration": 45,
     "vision_radius": 400,
     "radar_radius": 0,
-    "icon": "/units/pa_units_orbital_orbital_mine_orbital_mine.png",
+    "icon": "/PA-Dashboard/units/pa_units_orbital_orbital_mine_orbital_mine.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Orbital"
@@ -216,7 +216,7 @@
     "acceleration": 250,
     "vision_radius": 200,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_land_scout_land_scout.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_land_scout_land_scout.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -251,7 +251,7 @@
     "acceleration": 0,
     "vision_radius": 75,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_metal_extractor_adv_metal_extractor_adv.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_metal_extractor_adv_metal_extractor_adv.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -426,7 +426,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_raptor_enderstryke71_raptor_enderstryke71.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_raptor_enderstryke71_raptor_enderstryke71.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -480,7 +480,7 @@
     "acceleration": 0,
     "vision_radius": 110,
     "radar_radius": 0,
-    "icon": "/units/pa_units_orbital_delta_v_engine_delta_v_engine.png",
+    "icon": "/PA-Dashboard/units/pa_units_orbital_delta_v_engine_delta_v_engine.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -655,7 +655,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_aryst0krat_imperial_aryst0krat.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_aryst0krat_imperial_aryst0krat.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -706,7 +706,7 @@
     "acceleration": 25,
     "vision_radius": 300,
     "radar_radius": 0,
-    "icon": "/units/pa_units_orbital_orbital_carrier_orbital_carrier.png",
+    "icon": "/PA-Dashboard/units/pa_units_orbital_orbital_carrier_orbital_carrier.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Orbital"
@@ -775,7 +775,7 @@
     "acceleration": 80,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_air_fighter_adv_fighter_adv.png",
+    "icon": "/PA-Dashboard/units/pa_units_air_fighter_adv_fighter_adv.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Air"
@@ -967,7 +967,7 @@
     "acceleration": 100,
     "vision_radius": 250,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_titan_vehicle_titan_vehicle.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_titan_vehicle_titan_vehicle.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -1005,7 +1005,7 @@
     "acceleration": 120,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_fabrication_bot_combat_fabrication_bot_combat.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_fabrication_bot_combat_fabrication_bot_combat.png",
     "buildable_unit_ids": [
       "/pa/units/land/land_mine/land_mine.json",
       "/pa/units/land/teleporter/teleporter.json"
@@ -1044,7 +1044,7 @@
     "acceleration": 25,
     "vision_radius": 300,
     "radar_radius": 0,
-    "icon": "/units/pa_units_orbital_orbital_lander_orbital_lander.png",
+    "icon": "/PA-Dashboard/units/pa_units_orbital_orbital_lander_orbital_lander.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Orbital"
@@ -1219,7 +1219,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_quad_spartandano_quad_spartandano.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_quad_spartandano_quad_spartandano.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -1309,7 +1309,7 @@
     "acceleration": 30,
     "vision_radius": 50,
     "radar_radius": 0,
-    "icon": "/units/pa_units_air_solar_drone_solar_drone.png",
+    "icon": "/PA-Dashboard/units/pa_units_air_solar_drone_solar_drone.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Air"
@@ -1345,7 +1345,7 @@
     "acceleration": 90,
     "vision_radius": 250,
     "radar_radius": 0,
-    "icon": "/units/pa_units_air_air_scout_air_scout.png",
+    "icon": "/PA-Dashboard/units/pa_units_air_air_scout_air_scout.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Air"
@@ -1419,7 +1419,7 @@
     "acceleration": 100,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_aa_missile_vehicle_aa_missile_vehicle.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_aa_missile_vehicle_aa_missile_vehicle.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -1459,7 +1459,7 @@
     "acceleration": 0,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_vehicle_factory_vehicle_factory.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_vehicle_factory_vehicle_factory.png",
     "buildable_unit_ids": [
       "/pa/units/land/land_scout/land_scout.json",
       "/pa/units/land/aa_missile_vehicle/aa_missile_vehicle.json",
@@ -1642,7 +1642,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_gamma_imperial_gamma.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_gamma_imperial_gamma.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -1833,7 +1833,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_seniorhelix_imperial_seniorhelix.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_seniorhelix_imperial_seniorhelix.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -2029,7 +2029,7 @@
     "acceleration": 30,
     "vision_radius": 200,
     "radar_radius": 0,
-    "icon": "/units/pa_units_sea_hover_ship_hover_ship.png",
+    "icon": "/PA-Dashboard/units/pa_units_sea_hover_ship_hover_ship.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_WaterSurface"
@@ -2204,7 +2204,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_invictus_imperial_invictus.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_invictus_imperial_invictus.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -2395,7 +2395,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_raptor_beast_raptor_beast.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_raptor_beast_raptor_beast.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -2520,7 +2520,7 @@
     "acceleration": 30,
     "vision_radius": 180,
     "radar_radius": 0,
-    "icon": "/units/pa_units_sea_destroyer_destroyer.png",
+    "icon": "/PA-Dashboard/units/pa_units_sea_destroyer_destroyer.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_WaterSurface"
@@ -2557,7 +2557,7 @@
     "acceleration": 10,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_orbital_solar_array_solar_array.png",
+    "icon": "/PA-Dashboard/units/pa_units_orbital_solar_array_solar_array.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Orbital"
@@ -2593,7 +2593,7 @@
     "acceleration": 0,
     "vision_radius": 250,
     "radar_radius": 0,
-    "icon": "/units/pa_units_orbital_mining_platform_mining_platform.png",
+    "icon": "/PA-Dashboard/units/pa_units_orbital_mining_platform_mining_platform.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Orbital"
@@ -2768,7 +2768,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_quad_theflax_quad_theflax.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_quad_theflax_quad_theflax.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -2820,7 +2820,7 @@
     "acceleration": 35,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_air_fabrication_aircraft_fabrication_aircraft.png",
+    "icon": "/PA-Dashboard/units/pa_units_air_fabrication_aircraft_fabrication_aircraft.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/laser_defense/laser_defense.json",
@@ -3016,7 +3016,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_quad_osiris_quad_osiris.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_quad_osiris_quad_osiris.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -3179,7 +3179,7 @@
     "acceleration": 120,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_bot_tactical_missile_bot_tactical_missile.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_bot_tactical_missile_bot_tactical_missile.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -3257,7 +3257,7 @@
     "acceleration": 400,
     "vision_radius": 45,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_bot_nanoswarm_bot_nanoswarm.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_bot_nanoswarm_bot_nanoswarm.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -3337,7 +3337,7 @@
     "acceleration": 70,
     "vision_radius": 100,
     "radar_radius": 310,
-    "icon": "/units/pa_units_land_tank_anti_nuke_tank_anti_nuke.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_tank_anti_nuke_tank_anti_nuke.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -3512,7 +3512,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_sangudo_imperial_sangudo.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_sangudo_imperial_sangudo.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -3703,7 +3703,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_quad_sacrificiallamb_quad_sacrificiallamb.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_quad_sacrificiallamb_quad_sacrificiallamb.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -3865,7 +3865,7 @@
     "acceleration": 30,
     "vision_radius": 180,
     "radar_radius": 0,
-    "icon": "/units/pa_units_sea_frigate_frigate.png",
+    "icon": "/PA-Dashboard/units/pa_units_sea_frigate_frigate.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_WaterSurface"
@@ -3940,7 +3940,7 @@
     "acceleration": 60,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_tutorial_ai_commander_2_tutorial_ai_commander_2.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_tutorial_ai_commander_2_tutorial_ai_commander_2.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -4129,7 +4129,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_tank_reaver_tank_reaver.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_tank_reaver_tank_reaver.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -4184,7 +4184,7 @@
     "acceleration": 120,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_fabrication_vehicle_adv_fabrication_vehicle_adv.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_fabrication_vehicle_adv_fabrication_vehicle_adv.png",
     "buildable_unit_ids": [
       "/pa/units/land/metal_extractor_adv/metal_extractor_adv.json",
       "/pa/units/orbital/delta_v_engine/delta_v_engine.json",
@@ -4258,7 +4258,7 @@
     "acceleration": 100,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_sea_fabrication_ship_fabrication_ship.png",
+    "icon": "/PA-Dashboard/units/pa_units_sea_fabrication_ship_fabrication_ship.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/laser_defense/laser_defense.json",
@@ -4317,7 +4317,7 @@
     "acceleration": 160,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_fabrication_bot_fabrication_bot.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_fabrication_bot_fabrication_bot.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/laser_defense/laser_defense.json",
@@ -4513,7 +4513,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_quad_spiderofmean_quad_spiderofmean.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_quad_spiderofmean_quad_spiderofmean.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -4607,7 +4607,7 @@
     "acceleration": 0,
     "vision_radius": 130,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_laser_defense_laser_defense.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_laser_defense_laser_defense.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -4644,7 +4644,7 @@
     "acceleration": 0,
     "vision_radius": 1,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_land_barrier_land_barrier.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_land_barrier_land_barrier.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -4713,7 +4713,7 @@
     "acceleration": 65,
     "vision_radius": 400,
     "radar_radius": 0,
-    "icon": "/units/pa_units_orbital_orbital_fighter_orbital_fighter.png",
+    "icon": "/PA-Dashboard/units/pa_units_orbital_orbital_fighter_orbital_fighter.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Orbital"
@@ -4750,7 +4750,7 @@
     "acceleration": 10,
     "vision_radius": 250,
     "radar_radius": 0,
-    "icon": "/units/pa_units_orbital_orbital_fabrication_bot_orbital_fabrication_bot.png",
+    "icon": "/PA-Dashboard/units/pa_units_orbital_orbital_fabrication_bot_orbital_fabrication_bot.png",
     "buildable_unit_ids": [
       "/pa/units/orbital/orbital_mine/orbital_mine.json",
       "/pa/units/land/titan_vehicle/titan_vehicle.json",
@@ -4839,7 +4839,7 @@
     "acceleration": 100,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_tank_flak_tank_flak.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_tank_flak_tank_flak.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -5014,7 +5014,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_progenitor_imperial_progenitor.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_progenitor_imperial_progenitor.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -5205,7 +5205,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_raptor_rallus_raptor_rallus.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_raptor_rallus_raptor_rallus.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -5338,7 +5338,7 @@
     "acceleration": 0,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_tactical_missile_launcher_tactical_missile_launcher.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_tactical_missile_launcher_tactical_missile_launcher.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -5414,7 +5414,7 @@
     "acceleration": 100,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_tank_light_laser_tank_light_laser.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_tank_light_laser_tank_light_laser.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -5589,7 +5589,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_kevin4001_imperial_kevin4001.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_kevin4001_imperial_kevin4001.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -5642,7 +5642,7 @@
     "acceleration": 120,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_fabrication_bot_combat_adv_fabrication_bot_combat_adv.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_fabrication_bot_combat_adv_fabrication_bot_combat_adv.png",
     "buildable_unit_ids": [
       "/pa/units/land/laser_defense/laser_defense.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -5733,7 +5733,7 @@
     "acceleration": 0,
     "vision_radius": 100,
     "radar_radius": 310,
-    "icon": "/units/pa_units_land_anti_nuke_launcher_anti_nuke_launcher.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_anti_nuke_launcher_anti_nuke_launcher.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -5811,7 +5811,7 @@
     "acceleration": 25,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_orbital_orbital_laser_orbital_laser.png",
+    "icon": "/PA-Dashboard/units/pa_units_orbital_orbital_laser_orbital_laser.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Orbital"
@@ -5986,7 +5986,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_quad_calyx_quad_calyx.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_quad_calyx_quad_calyx.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -6177,7 +6177,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_tutorial_ai_commander_3_tutorial_ai_commander_3.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_tutorial_ai_commander_3_tutorial_ai_commander_3.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -6269,7 +6269,7 @@
     "acceleration": 0,
     "vision_radius": 130,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_laser_defense_adv_laser_defense_adv.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_laser_defense_adv_laser_defense_adv.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -6444,7 +6444,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_quad_armalisk_quad_armalisk.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_quad_armalisk_quad_armalisk.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -6499,7 +6499,7 @@
     "acceleration": 0,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_air_air_factory_air_factory.png",
+    "icon": "/PA-Dashboard/units/pa_units_air_air_factory_air_factory.png",
     "buildable_unit_ids": [
       "/pa/units/air/solar_drone/solar_drone.json",
       "/pa/units/air/air_scout/air_scout.json",
@@ -6681,7 +6681,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_quad_xinthar_quad_xinthar.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_quad_xinthar_quad_xinthar.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -6872,7 +6872,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_quad_raventhornn_quad_raventhornn.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_quad_raventhornn_quad_raventhornn.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -6969,7 +6969,7 @@
     "acceleration": 75,
     "vision_radius": 200,
     "radar_radius": 0,
-    "icon": "/units/pa_units_air_bomber_bomber.png",
+    "icon": "/PA-Dashboard/units/pa_units_air_bomber_bomber.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Air"
@@ -7079,7 +7079,7 @@
     "acceleration": 60,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_air_gunship_gunship.png",
+    "icon": "/PA-Dashboard/units/pa_units_air_gunship_gunship.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Air"
@@ -7115,7 +7115,7 @@
     "acceleration": 75,
     "vision_radius": 600,
     "radar_radius": 0,
-    "icon": "/units/pa_units_orbital_orbital_probe_orbital_probe.png",
+    "icon": "/PA-Dashboard/units/pa_units_orbital_orbital_probe_orbital_probe.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Orbital"
@@ -7152,7 +7152,7 @@
     "acceleration": 0,
     "vision_radius": 600,
     "radar_radius": 450,
-    "icon": "/units/pa_units_land_radar_radar.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_radar_radar.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -7235,7 +7235,7 @@
     "acceleration": 100,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_tank_heavy_mortar_tank_heavy_mortar.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_tank_heavy_mortar_tank_heavy_mortar.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -7410,7 +7410,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_tykus24_imperial_tykus24.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_tykus24_imperial_tykus24.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -7601,7 +7601,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_stelarch_imperial_stelarch.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_stelarch_imperial_stelarch.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -7687,7 +7687,7 @@
     "acceleration": 0,
     "vision_radius": 155,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_air_defense_adv_air_defense_adv.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_air_defense_adv_air_defense_adv.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -7722,7 +7722,7 @@
     "acceleration": 0,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_energy_plant_adv_energy_plant_adv.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_energy_plant_adv_energy_plant_adv.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -7897,7 +7897,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_theta_imperial_theta.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_theta_imperial_theta.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -8088,7 +8088,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_quad_twoboots_quad_twoboots.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_quad_twoboots_quad_twoboots.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -8279,7 +8279,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_nagasher_imperial_nagasher.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_nagasher_imperial_nagasher.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -8470,7 +8470,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_raptor_stickman9000_raptor_stickman9000.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_raptor_stickman9000_raptor_stickman9000.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -8564,7 +8564,7 @@
     "acceleration": 0,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_artillery_short_artillery_short.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_artillery_short_artillery_short.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -8640,7 +8640,7 @@
     "acceleration": 140,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_tank_hover_tank_hover.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_tank_hover_tank_hover.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -8717,7 +8717,7 @@
     "acceleration": 140,
     "vision_radius": 120,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_bot_tesla_bot_tesla.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_bot_tesla_bot_tesla.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -8752,7 +8752,7 @@
     "acceleration": 0,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_avatar_factory_avatar_factory.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_avatar_factory_avatar_factory.png",
     "buildable_unit_ids": [
       "/pa/units/land/tank_nuke/tank_nuke.json",
       "/pa/units/land/land_scout/land_scout.json",
@@ -9001,7 +9001,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_raptor_nemicus_raptor_nemicus.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_raptor_nemicus_raptor_nemicus.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -9090,7 +9090,7 @@
     "acceleration": 120,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_bot_aa_bot_aa.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_bot_aa_bot_aa.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -9167,7 +9167,7 @@
     "acceleration": 40,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_sea_attack_sub_attack_sub.png",
+    "icon": "/PA-Dashboard/units/pa_units_sea_attack_sub_attack_sub.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_WaterSurface",
@@ -9343,7 +9343,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_raptor_spz58624_raptor_spz58624.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_raptor_spz58624_raptor_spz58624.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -9471,7 +9471,7 @@
     "acceleration": 40,
     "vision_radius": 200,
     "radar_radius": 0,
-    "icon": "/units/pa_units_sea_nuclear_sub_nuclear_sub.png",
+    "icon": "/PA-Dashboard/units/pa_units_sea_nuclear_sub_nuclear_sub.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_WaterSurface",
@@ -9647,7 +9647,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_fiveleafclover_imperial_fiveleafclover.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_fiveleafclover_imperial_fiveleafclover.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -9838,7 +9838,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_raptor_betadyne_raptor_betadyne.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_raptor_betadyne_raptor_betadyne.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -10029,7 +10029,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_quad_pumpkin_quad_pumpkin.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_quad_pumpkin_quad_pumpkin.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -10152,7 +10152,7 @@
     "acceleration": 0,
     "vision_radius": 500,
     "radar_radius": 0,
-    "icon": "/units/pa_units_orbital_ion_defense_ion_defense.png",
+    "icon": "/PA-Dashboard/units/pa_units_orbital_ion_defense_ion_defense.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -10327,7 +10327,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_quad_potbelly79_quad_potbelly79.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_quad_potbelly79_quad_potbelly79.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -10518,7 +10518,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_delta_imperial_delta.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_delta_imperial_delta.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -10571,7 +10571,7 @@
     "acceleration": 0,
     "vision_radius": 75,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_metal_extractor_metal_extractor.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_metal_extractor_metal_extractor.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -10746,7 +10746,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_quad_commandonut_quad_commandonut.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_quad_commandonut_quad_commandonut.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -10937,7 +10937,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_raptor_diremachine_raptor_diremachine.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_raptor_diremachine_raptor_diremachine.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -11128,7 +11128,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_vidicarus_imperial_vidicarus.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_vidicarus_imperial_vidicarus.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -11319,7 +11319,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_quad_mobiousblack_quad_mobiousblack.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_quad_mobiousblack_quad_mobiousblack.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -11373,7 +11373,7 @@
     "acceleration": 160,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_fabrication_bot_adv_fabrication_bot_adv.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_fabrication_bot_adv_fabrication_bot_adv.png",
     "buildable_unit_ids": [
       "/pa/units/land/metal_extractor_adv/metal_extractor_adv.json",
       "/pa/units/orbital/delta_v_engine/delta_v_engine.json",
@@ -11490,7 +11490,7 @@
     "acceleration": 0,
     "vision_radius": 130,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_laser_defense_single_laser_defense_single.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_laser_defense_single_laser_defense_single.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -11665,7 +11665,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_mjon_imperial_mjon.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_mjon_imperial_mjon.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -11717,7 +11717,7 @@
     "acceleration": 100,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_sea_fabrication_ship_adv_fabrication_ship_adv.png",
+    "icon": "/PA-Dashboard/units/pa_units_sea_fabrication_ship_adv_fabrication_ship_adv.png",
     "buildable_unit_ids": [
       "/pa/units/land/metal_extractor_adv/metal_extractor_adv.json",
       "/pa/units/orbital/delta_v_engine/delta_v_engine.json",
@@ -11790,7 +11790,7 @@
     "acceleration": 0,
     "vision_radius": 110,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_titan_structure_titan_structure.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_titan_structure_titan_structure.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -11829,7 +11829,7 @@
     "acceleration": 100,
     "vision_radius": 100,
     "radar_radius": 260,
-    "icon": "/units/pa_units_land_tank_jammer_tank_jammer.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_tank_jammer_tank_jammer.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -11866,7 +11866,7 @@
     "acceleration": 15,
     "vision_radius": 600,
     "radar_radius": 600,
-    "icon": "/units/pa_units_orbital_radar_satellite_radar_satellite.png",
+    "icon": "/PA-Dashboard/units/pa_units_orbital_radar_satellite_radar_satellite.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Orbital"
@@ -11945,7 +11945,7 @@
     "acceleration": 70,
     "vision_radius": 200,
     "radar_radius": 0,
-    "icon": "/units/pa_units_air_strafer_strafer.png",
+    "icon": "/PA-Dashboard/units/pa_units_air_strafer_strafer.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Air"
@@ -12026,7 +12026,7 @@
     "acceleration": 0,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_artillery_long_artillery_long.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_artillery_long_artillery_long.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -12102,7 +12102,7 @@
     "acceleration": 50,
     "vision_radius": 105,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_assault_bot_assault_bot.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_assault_bot_assault_bot.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -12180,7 +12180,7 @@
     "acceleration": 0,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_artillery_unit_launcher_artillery_unit_launcher.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_artillery_unit_launcher_artillery_unit_launcher.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -12215,7 +12215,7 @@
     "acceleration": 0,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_control_module_control_module.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_control_module_control_module.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -12395,7 +12395,7 @@
     "acceleration": 30,
     "vision_radius": 200,
     "radar_radius": 0,
-    "icon": "/units/pa_units_sea_battleship_battleship.png",
+    "icon": "/PA-Dashboard/units/pa_units_sea_battleship_battleship.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_WaterSurface"
@@ -12466,7 +12466,7 @@
     "acceleration": 400,
     "vision_radius": 25,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_bot_bomb_bot_bomb.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_bot_bomb_bot_bomb.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -12503,7 +12503,7 @@
     "acceleration": 0,
     "vision_radius": 110,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_bot_factory_adv_bot_factory_adv.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_bot_factory_adv_bot_factory_adv.png",
     "buildable_unit_ids": [
       "/pa/units/land/fabrication_bot_combat/fabrication_bot_combat.json",
       "/pa/units/land/bot_tactical_missile/bot_tactical_missile.json",
@@ -12693,7 +12693,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_raptor_zaazzaa_raptor_zaazzaa.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_raptor_zaazzaa_raptor_zaazzaa.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -12884,7 +12884,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_raptor_iwmiked_raptor_iwmiked.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_raptor_iwmiked_raptor_iwmiked.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -12990,7 +12990,7 @@
     "acceleration": 30,
     "vision_radius": 250,
     "radar_radius": 0,
-    "icon": "/units/pa_units_sea_drone_carrier_carrier_carrier.png",
+    "icon": "/PA-Dashboard/units/pa_units_sea_drone_carrier_carrier_carrier.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_WaterSurface"
@@ -13070,7 +13070,7 @@
     "acceleration": 0,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_nuke_launcher_nuke_launcher.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_nuke_launcher_nuke_launcher.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -13142,7 +13142,7 @@
     "acceleration": 0,
     "vision_radius": 120,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_unit_cannon_unit_cannon.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_unit_cannon_unit_cannon.png",
     "buildable_unit_ids": [
       "/pa/units/land/fabrication_bot_combat/fabrication_bot_combat.json",
       "/pa/units/land/aa_missile_vehicle/aa_missile_vehicle.json",
@@ -13275,7 +13275,7 @@
     "acceleration": 40,
     "vision_radius": 50,
     "radar_radius": 0,
-    "icon": "/units/pa_units_sea_drone_carrier_drone_drone.png",
+    "icon": "/PA-Dashboard/units/pa_units_sea_drone_carrier_drone_drone.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Air"
@@ -13351,7 +13351,7 @@
     "acceleration": 40,
     "vision_radius": 200,
     "radar_radius": 0,
-    "icon": "/units/pa_units_air_bomber_adv_bomber_adv.png",
+    "icon": "/PA-Dashboard/units/pa_units_air_bomber_adv_bomber_adv.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Air"
@@ -13526,7 +13526,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_mostlikely_imperial_mostlikely.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_mostlikely_imperial_mostlikely.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -13578,7 +13578,7 @@
     "acceleration": 35,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_air_fabrication_aircraft_adv_fabrication_aircraft_adv.png",
+    "icon": "/PA-Dashboard/units/pa_units_air_fabrication_aircraft_adv_fabrication_aircraft_adv.png",
     "buildable_unit_ids": [
       "/pa/units/land/metal_extractor_adv/metal_extractor_adv.json",
       "/pa/units/orbital/delta_v_engine/delta_v_engine.json",
@@ -13745,7 +13745,7 @@
     "acceleration": 25,
     "vision_radius": 600,
     "radar_radius": 0,
-    "icon": "/units/pa_units_orbital_titan_orbital_titan_orbital.png",
+    "icon": "/PA-Dashboard/units/pa_units_orbital_titan_orbital_titan_orbital.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Orbital"
@@ -13829,7 +13829,7 @@
     "acceleration": 40,
     "vision_radius": 200,
     "radar_radius": 0,
-    "icon": "/units/pa_units_air_support_platform_support_platform.png",
+    "icon": "/PA-Dashboard/units/pa_units_air_support_platform_support_platform.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Air"
@@ -13908,7 +13908,7 @@
     "acceleration": 0,
     "vision_radius": 155,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_air_defense_air_defense.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_air_defense_air_defense.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -14023,7 +14023,7 @@
     "acceleration": 140,
     "vision_radius": 85,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_assault_bot_adv_assault_bot_adv.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_assault_bot_adv_assault_bot_adv.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -14059,7 +14059,7 @@
     "acceleration": 0,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_sea_naval_factory_adv_naval_factory_adv.png",
+    "icon": "/PA-Dashboard/units/pa_units_sea_naval_factory_adv_naval_factory_adv.png",
     "buildable_unit_ids": [
       "/pa/units/sea/hover_ship/hover_ship.json",
       "/pa/units/sea/destroyer/destroyer.json",
@@ -14154,7 +14154,7 @@
     "acceleration": 260,
     "vision_radius": 200,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_titan_bot_titan_bot.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_titan_bot_titan_bot.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -14232,7 +14232,7 @@
     "acceleration": 150,
     "vision_radius": 110,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_attack_vehicle_attack_vehicle.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_attack_vehicle_attack_vehicle.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -14269,7 +14269,7 @@
     "acceleration": 100,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_sea_fabrication_barge_fabrication_barge.png",
+    "icon": "/PA-Dashboard/units/pa_units_sea_fabrication_barge_fabrication_barge.png",
     "buildable_unit_ids": [
       "/pa/units/land/land_mine/land_mine.json",
       "/pa/units/land/teleporter/teleporter.json"
@@ -14447,7 +14447,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_raptor_xov_raptor_xov.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_raptor_xov_raptor_xov.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -14638,7 +14638,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_quad_zancrowe_quad_zancrowe.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_quad_zancrowe_quad_zancrowe.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -14829,7 +14829,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_tank_banditks_tank_banditks.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_tank_banditks_tank_banditks.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -14881,7 +14881,7 @@
     "acceleration": 0,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_energy_storage_energy_storage.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_energy_storage_energy_storage.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -15056,7 +15056,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_able_imperial_able.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_able_imperial_able.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -15247,7 +15247,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_visionik_imperial_visionik.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_visionik_imperial_visionik.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -15438,7 +15438,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_aceal_imperial_aceal.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_aceal_imperial_aceal.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -15629,7 +15629,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_quad_tokamaktech_quad_tokamaktech.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_quad_tokamaktech_quad_tokamaktech.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -15787,7 +15787,7 @@
     "acceleration": 0,
     "vision_radius": 600,
     "radar_radius": 0,
-    "icon": "/units/pa_units_orbital_defense_satellite_defense_satellite.png",
+    "icon": "/PA-Dashboard/units/pa_units_orbital_defense_satellite_defense_satellite.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Orbital"
@@ -15906,7 +15906,7 @@
     "acceleration": 100,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_bot_grenadier_bot_grenadier.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_bot_grenadier_bot_grenadier.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -16081,7 +16081,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_raptor_beniesk_raptor_beniesk.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_raptor_beniesk_raptor_beniesk.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -16272,7 +16272,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_raptor_nefelpitou_raptor_nefelpitou.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_raptor_nefelpitou_raptor_nefelpitou.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -16360,7 +16360,7 @@
     "acceleration": 0,
     "vision_radius": 2,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_land_mine_land_mine.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_land_mine_land_mine.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_WaterSurface"
@@ -16428,7 +16428,7 @@
     "acceleration": 90,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_air_fighter_fighter.png",
+    "icon": "/PA-Dashboard/units/pa_units_air_fighter_fighter.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Air"
@@ -16517,7 +16517,7 @@
     "acceleration": 120,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_bot_support_commander_bot_support_commander.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_bot_support_commander_bot_support_commander.png",
     "buildable_unit_ids": [
       "/pa/units/land/metal_extractor_adv/metal_extractor_adv.json",
       "/pa/units/orbital/delta_v_engine/delta_v_engine.json",
@@ -16591,7 +16591,7 @@
     "acceleration": 0,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_air_air_factory_adv_air_factory_adv.png",
+    "icon": "/PA-Dashboard/units/pa_units_air_air_factory_adv_air_factory_adv.png",
     "buildable_unit_ids": [
       "/pa/units/air/fighter_adv/fighter_adv.json",
       "/pa/units/air/solar_drone/solar_drone.json",
@@ -16780,7 +16780,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_quad_gambitdfa_quad_gambitdfa.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_quad_gambitdfa_quad_gambitdfa.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -16917,7 +16917,7 @@
     "acceleration": 60,
     "vision_radius": 200,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_bot_sniper_bot_sniper.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_bot_sniper_bot_sniper.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -17092,7 +17092,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_quad_ajax_quad_ajax.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_quad_ajax_quad_ajax.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -17148,7 +17148,7 @@
     "acceleration": 0,
     "vision_radius": 110,
     "radar_radius": 0,
-    "icon": "/units/pa_units_orbital_orbital_launcher_orbital_launcher.png",
+    "icon": "/PA-Dashboard/units/pa_units_orbital_orbital_launcher_orbital_launcher.png",
     "buildable_unit_ids": [
       "/pa/units/orbital/orbital_lander/orbital_lander.json",
       "/pa/units/orbital/orbital_fighter/orbital_fighter.json",
@@ -17329,7 +17329,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_raptor_unicorn_raptor_unicorn.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_raptor_unicorn_raptor_unicorn.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -17417,7 +17417,7 @@
     "acceleration": 10,
     "vision_radius": 650,
     "radar_radius": 0,
-    "icon": "/units/pa_units_orbital_orbital_railgun_orbital_railgun.png",
+    "icon": "/PA-Dashboard/units/pa_units_orbital_orbital_railgun_orbital_railgun.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Orbital"
@@ -17592,7 +17592,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_alpha_imperial_alpha.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_alpha_imperial_alpha.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -17783,7 +17783,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_toddfather_imperial_toddfather.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_toddfather_imperial_toddfather.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -17835,7 +17835,7 @@
     "acceleration": 0,
     "vision_radius": 1200,
     "radar_radius": 900,
-    "icon": "/units/pa_units_land_radar_adv_radar_adv.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_radar_adv_radar_adv.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -17872,7 +17872,7 @@
     "acceleration": 0,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_vehicle_factory_adv_vehicle_factory_adv.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_vehicle_factory_adv_vehicle_factory_adv.png",
     "buildable_unit_ids": [
       "/pa/units/land/tank_nuke/tank_nuke.json",
       "/pa/units/land/land_scout/land_scout.json",
@@ -18063,7 +18063,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_chronoblip_imperial_chronoblip.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_chronoblip_imperial_chronoblip.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -18115,7 +18115,7 @@
     "acceleration": 0,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_metal_storage_metal_storage.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_metal_storage_metal_storage.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -18290,7 +18290,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_quad_xenosentryprime_quad_xenosentryprime.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_quad_xenosentryprime_quad_xenosentryprime.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -18340,7 +18340,7 @@
     "acceleration": 700,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_avatar_avatar.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_avatar_avatar.png",
     "buildable_unit_ids": [
       "/pa/units/orbital/orbital_mine/orbital_mine.json",
       "/pa/units/land/metal_extractor_adv/metal_extractor_adv.json",
@@ -18466,7 +18466,7 @@
     "acceleration": 0,
     "vision_radius": 100,
     "radar_radius": 200,
-    "icon": "/units/pa_units_sea_torpedo_launcher_torpedo_launcher.png",
+    "icon": "/PA-Dashboard/units/pa_units_sea_torpedo_launcher_torpedo_launcher.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_WaterSurface"
@@ -18641,7 +18641,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_quad_locust_quad_locust.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_quad_locust_quad_locust.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -18693,7 +18693,7 @@
     "acceleration": 30,
     "vision_radius": 70,
     "radar_radius": 0,
-    "icon": "/units/pa_units_air_transport_transport.png",
+    "icon": "/PA-Dashboard/units/pa_units_air_transport_transport.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Air"
@@ -18868,7 +18868,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_jt100010117_imperial_jt100010117.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_jt100010117_imperial_jt100010117.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -18961,7 +18961,7 @@
     "acceleration": 100,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_tank_heavy_armor_tank_heavy_armor.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_tank_heavy_armor_tank_heavy_armor.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -18999,7 +18999,7 @@
     "acceleration": 0,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_teleporter_teleporter.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_teleporter_teleporter.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -19174,7 +19174,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_gnugfur_imperial_gnugfur.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_gnugfur_imperial_gnugfur.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -19365,7 +19365,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_raptor_centurion_raptor_centurion.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_raptor_centurion_raptor_centurion.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -19456,7 +19456,7 @@
     "acceleration": 75,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_sea_sea_scout_sea_scout.png",
+    "icon": "/PA-Dashboard/units/pa_units_sea_sea_scout_sea_scout.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_WaterSurface"
@@ -19631,7 +19631,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_thechessknight_imperial_thechessknight.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_thechessknight_imperial_thechessknight.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -19729,7 +19729,7 @@
     "acceleration": 260,
     "vision_radius": 20000,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_tutorial_titan_commander_tutorial_titan_commander.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_tutorial_titan_commander_tutorial_titan_commander.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -19904,7 +19904,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_tank_aeson_tank_aeson.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_tank_aeson_tank_aeson.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -19958,7 +19958,7 @@
     "acceleration": 120,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_fabrication_vehicle_fabrication_vehicle.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_fabrication_vehicle_fabrication_vehicle.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/laser_defense/laser_defense.json",
@@ -20214,7 +20214,7 @@
     "acceleration": 30,
     "vision_radius": 400,
     "radar_radius": 0,
-    "icon": "/units/pa_units_orbital_orbital_battleship_orbital_battleship.png",
+    "icon": "/PA-Dashboard/units/pa_units_orbital_orbital_battleship_orbital_battleship.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Orbital"
@@ -20389,7 +20389,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_fusion_imperial_fusion.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_fusion_imperial_fusion.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -20580,7 +20580,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_quad_shadowdaemon_quad_shadowdaemon.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_quad_shadowdaemon_quad_shadowdaemon.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -20738,7 +20738,7 @@
     "acceleration": 60,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_tutorial_ai_commander_tutorial_ai_commander.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_tutorial_ai_commander_tutorial_ai_commander.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -20928,7 +20928,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_raptor_damubbster_raptor_damubbster.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_raptor_damubbster_raptor_damubbster.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -21026,7 +21026,7 @@
     "acceleration": 10,
     "vision_radius": 200,
     "radar_radius": 0,
-    "icon": "/units/pa_units_air_bomber_heavy_bomber_heavy.png",
+    "icon": "/PA-Dashboard/units/pa_units_air_bomber_heavy_bomber_heavy.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Air"
@@ -21102,7 +21102,7 @@
     "acceleration": 100,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_tank_armor_tank_armor.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_tank_armor_tank_armor.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -21276,7 +21276,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_tutorial_player_commander_tutorial_player_commander.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_tutorial_player_commander_tutorial_player_commander.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -21328,7 +21328,7 @@
     "acceleration": 0,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_energy_plant_energy_plant.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_energy_plant_energy_plant.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -21479,7 +21479,7 @@
     "acceleration": 30,
     "vision_radius": 250,
     "radar_radius": 350,
-    "icon": "/units/pa_units_sea_missile_ship_missile_ship.png",
+    "icon": "/PA-Dashboard/units/pa_units_sea_missile_ship_missile_ship.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_WaterSurface"
@@ -21654,7 +21654,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_enzomatrix_imperial_enzomatrix.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_enzomatrix_imperial_enzomatrix.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -21845,7 +21845,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_raptor_majuju_raptor_majuju.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_raptor_majuju_raptor_majuju.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -21900,7 +21900,7 @@
     "acceleration": 0,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_sea_naval_factory_naval_factory.png",
+    "icon": "/PA-Dashboard/units/pa_units_sea_naval_factory_naval_factory.png",
     "buildable_unit_ids": [
       "/pa/units/sea/destroyer/destroyer.json",
       "/pa/units/sea/frigate/frigate.json",
@@ -22082,7 +22082,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_raptor_raizell_raptor_raizell.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_raptor_raizell_raptor_raizell.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -22174,7 +22174,7 @@
     "acceleration": 0,
     "vision_radius": 160,
     "radar_radius": 210,
-    "icon": "/units/pa_units_sea_torpedo_launcher_adv_torpedo_launcher_adv.png",
+    "icon": "/PA-Dashboard/units/pa_units_sea_torpedo_launcher_adv_torpedo_launcher_adv.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_WaterSurface"
@@ -22209,7 +22209,7 @@
     "acceleration": 0,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_radar_jammer_radar_jammer.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_radar_jammer_radar_jammer.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -22384,7 +22384,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_raptor_beast_king_raptor_beast_king.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_raptor_beast_king_raptor_beast_king.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -22430,7 +22430,7 @@
     "acceleration": 0,
     "vision_radius": 1000,
     "radar_radius": 0,
-    "icon": "/units/pa_units_orbital_deep_space_radar_deep_space_radar.png",
+    "icon": "/PA-Dashboard/units/pa_units_orbital_deep_space_radar_deep_space_radar.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -22515,7 +22515,7 @@
     "acceleration": 30,
     "vision_radius": 200,
     "radar_radius": 0,
-    "icon": "/units/pa_units_air_titan_air_titan_air.png",
+    "icon": "/PA-Dashboard/units/pa_units_air_titan_air_titan_air.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Air"
@@ -22590,7 +22590,7 @@
     "acceleration": 100,
     "vision_radius": 100,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_tank_laser_adv_tank_laser_adv.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_tank_laser_adv_tank_laser_adv.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_LandHorizontal"
@@ -22765,7 +22765,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_imperial_kapowaz_imperial_kapowaz.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_imperial_kapowaz_imperial_kapowaz.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -22818,7 +22818,7 @@
     "acceleration": 10,
     "vision_radius": 1200,
     "radar_radius": 1000,
-    "icon": "/units/pa_units_orbital_radar_satellite_adv_radar_satellite_adv.png",
+    "icon": "/PA-Dashboard/units/pa_units_orbital_radar_satellite_adv_radar_satellite_adv.png",
     "buildable_unit_ids": [],
     "layers": [
       "WL_Orbital"
@@ -22855,7 +22855,7 @@
     "acceleration": 0,
     "vision_radius": 250,
     "radar_radius": 0,
-    "icon": "/units/pa_units_orbital_orbital_factory_orbital_factory.png",
+    "icon": "/PA-Dashboard/units/pa_units_orbital_orbital_factory_orbital_factory.png",
     "buildable_unit_ids": [
       "/pa/units/orbital/orbital_carrier/orbital_carrier.json",
       "/pa/units/orbital/orbital_lander/orbital_lander.json",
@@ -23042,7 +23042,7 @@
     "acceleration": 60,
     "vision_radius": 150,
     "radar_radius": 0,
-    "icon": "/units/pa_units_commanders_tank_sadiga_tank_sadiga.png",
+    "icon": "/PA-Dashboard/units/pa_units_commanders_tank_sadiga_tank_sadiga.png",
     "buildable_unit_ids": [
       "/pa/units/land/vehicle_factory/vehicle_factory.json",
       "/pa/units/land/land_barrier/land_barrier.json",
@@ -23098,7 +23098,7 @@
     "acceleration": 0,
     "vision_radius": 110,
     "radar_radius": 0,
-    "icon": "/units/pa_units_land_bot_factory_bot_factory.png",
+    "icon": "/PA-Dashboard/units/pa_units_land_bot_factory_bot_factory.png",
     "buildable_unit_ids": [
       "/pa/units/land/fabrication_bot_combat/fabrication_bot_combat.json",
       "/pa/units/land/fabrication_bot/fabrication_bot.json",
