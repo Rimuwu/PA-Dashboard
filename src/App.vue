@@ -1,5 +1,17 @@
 <script setup>
 import { ref, computed, onMounted, watch, nextTick, shallowRef } from 'vue';
+import CompareModal from './components/CompareModal.vue';
+import CounterModal from './components/CounterModal.vue';
+import SimulationModal from './components/SimulationModal.vue';
+import HelpModal from './components/HelpModal.vue';
+import SkinModal from './components/SkinModal.vue';
+import { 
+  normalizeLayer, 
+  canTargetLayer, 
+  getVictoryEaseDetails as extGetVictoryEaseDetails, 
+  runBattleSimulation as extRunBattleSimulation 
+} from './utils/battleSimulation.js';
+import pregeneratedHardestCounters from './data/hardest_counters.json';
 import { 
   Sword, 
   Trash2, 
@@ -44,7 +56,14 @@ import {
   Trophy,
   Skull,
   Flame,
-  Move
+  Move,
+  ShieldAlert,
+  ShieldCheck,
+  BarChart2,
+  Tag,
+  Undo2,
+  ExternalLink,
+  Clock
 } from '@lucide/vue';
 import unitsData from './data/units.json';
 import ruLocale from './locales/ru.json';
@@ -62,6 +81,10 @@ const activeSubFilter = ref('all'); // all, structures, mobile, combat, factorie
 const activeTargetFilters = ref([]); // e.g. ['land', 'air']
 const activeTierFilters = ref([]);   // e.g. ['T1', 'T2']
 const filtersCollapsed = ref(false);
+const sidebarSortBy = ref('default');
+const sidebarSortOrder = ref('desc');
+const activeTagFilters = ref([]);
+const selectedFactoryFilter = ref('all');
 
 const toggleTargetFilter = (id) => {
   const idx = activeTargetFilters.value.indexOf(id);
@@ -81,6 +104,68 @@ const toggleTierFilter = (id) => {
   }
 };
 
+const toggleTagFilter = (tag) => {
+  const idx = activeTagFilters.value.indexOf(tag);
+  if (idx > -1) {
+    activeTagFilters.value.splice(idx, 1);
+  } else {
+    activeTagFilters.value.push(tag);
+  }
+};
+
+const unitBuiltByFactory = (unit, factory) => {
+  if (!factory || !factory.buildable_types) return false;
+  
+  const isMobile = unit.unit_types?.includes('UNITTYPE_Mobile');
+  const isStructure = unit.unit_types?.includes('UNITTYPE_Structure');
+  const isBasic = !unit.tier || unit.tier === 'T1';
+  const isAdv = unit.tier === 'T2';
+  const isTitan = unit.tier === 'Titan';
+  
+  const types = unit.unit_types || [];
+  const fid = factory.id.toLowerCase();
+  
+  if (fid.includes('bot_factory_adv')) {
+    return isMobile && types.includes('UNITTYPE_Bot') && (isAdv || isTitan);
+  }
+  if (fid.includes('bot_factory')) {
+    return isMobile && types.includes('UNITTYPE_Bot') && isBasic;
+  }
+  if (fid.includes('vehicle_factory_adv')) {
+    return isMobile && (types.includes('UNITTYPE_Tank') || types.includes('UNITTYPE_Vehicle')) && (isAdv || isTitan);
+  }
+  if (fid.includes('vehicle_factory')) {
+    return isMobile && (types.includes('UNITTYPE_Tank') || types.includes('UNITTYPE_Vehicle')) && isBasic;
+  }
+  if (fid.includes('air_factory_adv')) {
+    return isMobile && types.includes('UNITTYPE_Air') && (isAdv || isTitan);
+  }
+  if (fid.includes('air_factory')) {
+    return isMobile && types.includes('UNITTYPE_Air') && isBasic;
+  }
+  if (fid.includes('naval_factory_adv')) {
+    return isMobile && types.includes('UNITTYPE_Naval') && (isAdv || isTitan);
+  }
+  if (fid.includes('naval_factory')) {
+    return isMobile && types.includes('UNITTYPE_Naval') && isBasic;
+  }
+  if (fid.includes('orbital_launcher')) {
+    return isMobile && types.includes('UNITTYPE_Orbital') && isBasic;
+  }
+  if (fid.includes('orbital_factory')) {
+    return isMobile && types.includes('UNITTYPE_Orbital') && (isAdv || isTitan);
+  }
+  
+  const expr = factory.buildable_types.toLowerCase();
+  if (expr.includes('bot') && types.includes('UNITTYPE_Bot')) return true;
+  if (expr.includes('tank') && (types.includes('UNITTYPE_Tank') || types.includes('UNITTYPE_Vehicle'))) return true;
+  if (expr.includes('air') && types.includes('UNITTYPE_Air')) return true;
+  if (expr.includes('naval') && types.includes('UNITTYPE_Naval')) return true;
+  if (expr.includes('orbital') && types.includes('UNITTYPE_Orbital')) return true;
+  
+  return false;
+};
+
 // Commander Skins State
 const showSkinModal = ref(false);
 const skinCard = ref(null);
@@ -88,6 +173,244 @@ const skinCard = ref(null);
 const allCommanders = computed(() => {
   return unitsData.filter(u => u.category === 'commander' || u.id.includes('commander'));
 });
+
+const sidebarFactories = computed(() => {
+  const unique = [];
+  const ids = new Set();
+  unitsData.forEach(u => {
+    const isCommander = u.category === 'commander' || u.id.includes('commander');
+    if (u.is_factory && !isCommander && !ids.has(u.id)) {
+      ids.add(u.id);
+      unique.push(u);
+    }
+  });
+  return unique;
+});
+
+// Operational energy production/consumption helper
+const getUnitEnergyStats = (unit) => {
+  if (!unit) return null;
+  const isStructure = unit.unit_types?.includes('UNITTYPE_Structure');
+  const buildEnergy = isStructure ? unit.cost * 25 : 0;
+  
+  let energyProd = 0;
+  let energyCons = 0;
+  
+  const uid = unit.id.toLowerCase();
+  
+  if (unit.unit_types?.includes('UNITTYPE_EnergyProduction')) {
+    if (uid.includes('energy_plant_adv')) energyProd = 5000;
+    else if (uid.includes('energy_plant')) energyProd = 600;
+    else if (uid.includes('solar_drone')) energyProd = 15;
+    else if (uid.includes('mining_platform')) energyProd = 4000;
+    else if (uid.includes('solar_array')) energyProd = 1800;
+    else energyProd = 600;
+  } else if (unit.category === 'commander' || uid.includes('commander')) {
+    energyProd = 2000;
+  }
+  
+  if (uid.includes('radar_adv')) {
+    energyCons = 4000;
+  } else if (uid.includes('radar_satellite') || uid.includes('orbital_radar')) {
+    energyCons = 500;
+  } else if (uid.includes('radar')) {
+    energyCons = 1000;
+  } else if (uid.includes('teleporter')) {
+    energyCons = 10000;
+  } else if (uid.includes('bot_tesla')) {
+    energyCons = 150;
+  } else if (uid.includes('anti_orbital_armor') || uid.includes('umbrella')) {
+    energyCons = 250;
+  } else if (uid.includes('artillery_long') || uid.includes('holkins')) {
+    energyCons = 2000;
+  } else if (uid.includes('tactical_missile_launcher')) {
+    energyCons = 1200;
+  } else if (unit.is_builder || unit.is_factory) {
+    const metalRate = unit.build_metal_rate || (unit.is_factory ? 15 : 10);
+    energyCons = metalRate * 25;
+  }
+  
+  return {
+    buildEnergy,
+    energyProd,
+    energyCons
+  };
+};
+
+// Canvas build timelines state
+const timelinePanels = ref([]);
+const activeDragTimeline = ref(null);
+const dragTimelineOffset = ref({ x: 0, y: 0 });
+const lastMouseCanvasPos = ref({ x: 0, y: 0 });
+
+const getColumnAbsolutePosition = (colId) => {
+  for (const panel of timelinePanels.value) {
+    let currentX = panel.x + 12; // 12px padding inside timeline panel
+    const headerHeight = 40;
+    const colGap = 12;
+    for (const col of panel.columns) {
+      if (col.id === colId) {
+        return { x: currentX, y: panel.y + headerHeight };
+      }
+      currentX += (col.width || 250) + colGap;
+    }
+  }
+  return null;
+};
+
+const getTimelineColumnAt = (canvasX, canvasY) => {
+  for (const panel of timelinePanels.value) {
+    let currentX = panel.x + 12;
+    const headerHeight = 40;
+    const colGap = 12;
+    for (const col of panel.columns) {
+      const colW = col.width || 250;
+      const colH = col.height || 420;
+      
+      const left = currentX;
+      const right = currentX + colW;
+      const top = panel.y + headerHeight;
+      const bottom = panel.y + headerHeight + colH - 45; // exclude bottom summary area
+      
+      if (canvasX >= left && canvasX <= right && canvasY >= top && canvasY <= bottom) {
+        return {
+          panel,
+          col,
+          relX: canvasX - left,
+          relY: canvasY - top
+        };
+      }
+      currentX += colW + colGap;
+    }
+  }
+  return null;
+};
+
+const autoFitColumnSize = (col) => {
+  const colUnits = placedUnits.value.filter(u => u.timelineColId === col.id);
+  if (colUnits.length === 0) return;
+  
+  const CARD_W = 220;
+  const CARD_H = 200;
+  
+  let maxRight = col.width || 250;
+  let maxBottom = col.height || 420;
+  
+  colUnits.forEach(u => {
+    const right = u.x + CARD_W + 16;
+    const bottom = u.y + CARD_H + 80;
+    if (right > maxRight) maxRight = right;
+    if (bottom > maxBottom) maxBottom = bottom;
+  });
+  
+  col.width = Math.ceil(maxRight);
+  col.height = Math.ceil(maxBottom);
+};
+
+const createTimelinePanel = (x, y) => {
+  pushToUndoStack();
+  timelinePanels.value.push({
+    uuid: generateUuid(),
+    x: snapToGrid.value ? Math.round((x - 250) / 40) * 40 : x - 250,
+    y: snapToGrid.value ? Math.round((y - 40) / 40) * 40 : y - 40,
+    columns: [
+      { id: generateUuid(), minute: 1, width: 250, height: 420 },
+      { id: generateUuid(), minute: 2, width: 250, height: 420 }
+    ]
+  });
+  saveToLocalStorage();
+};
+
+const addColumnToTimeline = (panel) => {
+  pushToUndoStack();
+  const nextMin = panel.columns.length > 0
+    ? Math.max(...panel.columns.map(c => Number(c.minute) || 0)) + 1
+    : 1;
+  panel.columns.push({
+    id: generateUuid(),
+    minute: nextMin,
+    width: 250,
+    height: 420
+  });
+  saveToLocalStorage();
+};
+
+const removeColumnFromTimeline = (panel, colId) => {
+  pushToUndoStack();
+  panel.columns = panel.columns.filter(c => c.id !== colId);
+  // Clean up units in this column
+  placedUnits.value = placedUnits.value.filter(u => u.timelineColId !== colId);
+  saveToLocalStorage();
+};
+
+const removeTimelinePanel = (uuid) => {
+  pushToUndoStack();
+  const panel = timelinePanels.value.find(p => p.uuid === uuid);
+  if (panel) {
+    const colIds = panel.columns.map(c => c.id);
+    placedUnits.value = placedUnits.value.filter(u => !colIds.includes(u.timelineColId));
+  }
+  timelinePanels.value = timelinePanels.value.filter(p => p.uuid !== uuid);
+  saveToLocalStorage();
+};
+
+const startResizeColumn = (panel, col, e) => {
+  e.stopPropagation();
+  e.preventDefault();
+  pushToUndoStack();
+  const startWidth = col.width || 250;
+  const startHeight = col.height || 420;
+  const startX = e.clientX;
+  const startY = e.clientY;
+  
+  const onMouseMove = (moveEvent) => {
+    const dx = (moveEvent.clientX - startX) / canvasZoom.value;
+    const dy = (moveEvent.clientY - startY) / canvasZoom.value;
+    const newWidth = Math.max(240, startWidth + dx);
+    const newHeight = Math.max(300, startHeight + dy);
+    col.width = snapToGrid.value ? Math.round(newWidth / 40) * 40 : newWidth;
+    col.height = snapToGrid.value ? Math.round(newHeight / 40) * 40 : newHeight;
+  };
+  
+  const onMouseUp = () => {
+    window.removeEventListener('mousemove', onMouseMove);
+    window.removeEventListener('mouseup', onMouseUp);
+    saveToLocalStorage();
+  };
+  
+  window.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('mouseup', onMouseUp);
+};
+
+const onTimelineMinuteChange = (panel, changedCol) => {
+  const newVal = Number(changedCol.minute) || 0;
+  panel.columns.forEach(col => {
+    if (col.id !== changedCol.id && (Number(col.minute) || 0) >= newVal) {
+      col.minute = (Number(col.minute) || 0) + 1;
+    }
+  });
+  panel.columns.sort((a, b) => (Number(a.minute) || 0) - (Number(b.minute) || 0));
+  saveToLocalStorage();
+};
+
+const onTimelineMousedown = (panel, e) => {
+  if (e.target.closest('.qty-btn') || e.target.closest('input') || e.target.closest('button') || e.target.closest('.unit-card') || e.target.closest('.timeline-col-resize-handle')) return;
+  if (e.button !== 0) return;
+  e.stopPropagation();
+  
+  pushToUndoStack();
+  activeDragTimeline.value = panel;
+  
+  const rect = canvasRef.value.getBoundingClientRect();
+  const mouseCanvasX = (e.clientX - rect.left - canvasOffset.value.x) / canvasZoom.value + 25000;
+  const mouseCanvasY = (e.clientY - rect.top - canvasOffset.value.y) / canvasZoom.value + 25000;
+  
+  dragTimelineOffset.value = {
+    x: mouseCanvasX - panel.x,
+    y: mouseCanvasY - panel.y
+  };
+  closeContextMenu();
+};
 
 const openSkinModal = (placedCard) => {
   skinCard.value = placedCard;
@@ -174,6 +497,41 @@ const sidebarHidden = ref(false);
 // Full Unit Info Modal State
 const showUnitDetailModal = ref(false);
 const unitDetailSpec = ref(null);
+const showCompareModal = ref(false);
+const compareUnitIds = ref([]);
+const counterSelectedNodeUuid = ref(null);
+const showCounterModal = ref(false);
+const counterRatings = ref([]);
+const hardestCountersCache = pregeneratedHardestCounters;
+
+const undoStack = ref([]);
+
+const pushToUndoStack = () => {
+  undoStack.value.push(JSON.stringify({
+    placedUnits: placedUnits.value,
+    groupAreas: groupAreas.value,
+    connections: connections.value
+  }));
+  if (undoStack.value.length > 50) {
+    undoStack.value.shift();
+  }
+};
+
+const undoLastAction = () => {
+  if (undoStack.value.length === 0) return;
+  const raw = undoStack.value.pop();
+  try {
+    const data = JSON.parse(raw);
+    placedUnits.value = data.placedUnits || [];
+    groupAreas.value = data.groupAreas || [];
+    connections.value = data.connections || [];
+    selectedCardUuids.value = [];
+    calculateAllBattles();
+    saveToLocalStorage();
+  } catch (e) {
+    console.error("Undo failed:", e);
+  }
+};
 
 const openUnitDetail = (item) => {
   if (!item) return;
@@ -187,6 +545,48 @@ const openUnitDetail = (item) => {
   if (unitDetailSpec.value) {
     showUnitDetailModal.value = true;
   }
+};
+
+const getBestValue = (property, order = 'max') => {
+  const specs = compareUnitIds.value.map(id => getUnitById(id)).filter(Boolean);
+  if (specs.length === 0) return null;
+  const values = specs.map(s => {
+    if (property === 'cost') return s.cost || 0;
+    if (property === 'health') return s.health || 0;
+    if (property === 'dps') return s.dps || 0;
+    if (property === 'range') return s.range || 0;
+    if (property === 'speed') return s.move_speed || 0;
+    if (property === 'turn_speed') return s.turn_speed || 0;
+    if (property === 'vision') return s.vision_radius || 0;
+    if (property === 'radar') return s.radar_radius || 0;
+    if (property === 'build_energy') return s.unit_types?.includes('UNITTYPE_Structure') ? s.cost * 25 : 0;
+    if (property === 'energy_prod') return getUnitEnergyStats(s)?.energyProd || 0;
+    if (property === 'energy_cons') return getUnitEnergyStats(s)?.energyCons || 0;
+    if (property === 'repair') return s.is_builder ? s.build_metal_rate || 0 : 0;
+    return 0;
+  });
+  return order === 'max' ? Math.max(...values) : Math.min(...values);
+};
+
+const getWorstValue = (property, order = 'max') => {
+  const specs = compareUnitIds.value.map(id => getUnitById(id)).filter(Boolean);
+  if (specs.length === 0) return null;
+  const values = specs.map(s => {
+    if (property === 'cost') return s.cost || 0;
+    if (property === 'health') return s.health || 0;
+    if (property === 'dps') return s.dps || 0;
+    if (property === 'range') return s.range || 0;
+    if (property === 'speed') return s.move_speed || 0;
+    if (property === 'turn_speed') return s.turn_speed || 0;
+    if (property === 'vision') return s.vision_radius || 0;
+    if (property === 'radar') return s.radar_radius || 0;
+    if (property === 'build_energy') return s.unit_types?.includes('UNITTYPE_Structure') ? s.cost * 25 : 99999999;
+    if (property === 'energy_prod') return getUnitEnergyStats(s)?.energyProd || 0;
+    if (property === 'energy_cons') return getUnitEnergyStats(s)?.energyCons || 0;
+    if (property === 'repair') return s.is_builder ? s.build_metal_rate || 0 : 0;
+    return 0;
+  });
+  return order === 'max' ? Math.min(...values) : Math.max(...values);
 };
 
 // Simulation Settings Modal State
@@ -371,13 +771,15 @@ const getSvgY = (y) => {
   return (getUnitTopPercent(y) / 100) * 220;
 };
 
-// Get SVG circle radius for weapon range (using horizontal scale to prevent oval distortion)
+// Get SVG circle radius for weapon range — map game distance to SVG pixel space
 const getSvgRange = (range) => {
-  if (!animSim.value) return 0;
-  const conn = connections.value.find(c => c.uuid === animSim.value.connUuid);
+  if (!animSim.value || !range || range <= 0) return 0;
+  const connUuid = animSim.value.connUuid;
+  const conn = connections.value.find(c => c.uuid === connUuid);
   const dist = conn?.settings?.initialDistance || simSettings.value.initialDistance || 300;
-  const totalWidth = dist * 2 + 300;
-  return (range / totalWidth) * trackWidth.value;
+  // The full X span is from -(dist+150) to +(dist+150) mapped to trackWidth px
+  const totalSpan = (dist + 150) * 2;
+  return (range / totalSpan) * trackWidth.value;
 };
 
 const isShowRangesEnabled = computed(() => {
@@ -432,7 +834,7 @@ const generateUuid = () => {
 const filteredUnits = computed(() => {
   const firstCmdId = allCommanders.value.length > 0 ? allCommanders.value[0].id : null;
 
-  return units.value.filter(u => {
+  const filtered = units.value.filter(u => {
     // 0. Deduplicate Commanders in sidebar: only show the first commander specimen!
     const isCmd = u.category === 'commander' || u.id.includes('commander');
     if (isCmd && u.id !== firstCmdId) {
@@ -481,8 +883,69 @@ const filteredUnits = computed(() => {
       matchesTier = activeTierFilters.value.includes(u.tier || 'T1');
     }
     
-    return matchesSearch && matchesCategory && matchesSub && matchesTarget && matchesTier;
+    // 6. Factory Filter
+    let matchesFactory = true;
+    if (selectedFactoryFilter.value && selectedFactoryFilter.value !== 'all') {
+      if (selectedFactoryFilter.value === 'commander') {
+        const isStructure = u.unit_types?.includes('UNITTYPE_Structure');
+        const isBasic = !u.tier || u.tier === 'T1';
+        matchesFactory = isStructure && isBasic;
+      } else {
+        const factory = units.value.find(f => f.id === selectedFactoryFilter.value);
+        if (factory) {
+          matchesFactory = unitBuiltByFactory(u, factory);
+        }
+      }
+    }
+
+    // 7. Tags Filter
+    let matchesTags = true;
+    if (activeTagFilters.value.length > 0) {
+      matchesTags = activeTagFilters.value.every(tag => {
+        return u.unit_types?.includes('UNITTYPE_' + tag);
+      });
+    }
+    
+    return matchesSearch && matchesCategory && matchesSub && matchesTarget && matchesTier && matchesFactory && matchesTags;
   });
+
+  if (sidebarSortBy.value && sidebarSortBy.value !== 'default') {
+    filtered.sort((a, b) => {
+      if (sidebarSortBy.value === 'name') {
+        const nameA = t('unit_name_' + a.id).toLowerCase();
+        const nameB = t('unit_name_' + b.id).toLowerCase();
+        return sidebarSortOrder.value === 'asc' 
+          ? nameA.localeCompare(nameB) 
+          : nameB.localeCompare(nameA);
+      }
+      
+      let valA = 0;
+      let valB = 0;
+      if (sidebarSortBy.value === 'cost') {
+        valA = a.cost || 0;
+        valB = b.cost || 0;
+      } else if (sidebarSortBy.value === 'health') {
+        valA = a.health || 0;
+        valB = b.health || 0;
+      } else if (sidebarSortBy.value === 'dps') {
+        valA = a.dps || 0;
+        valB = b.dps || 0;
+      } else if (sidebarSortBy.value === 'range') {
+        valA = a.range || 0;
+        valB = b.range || 0;
+      } else if (sidebarSortBy.value === 'speed') {
+        valA = a.move_speed || 0;
+        valB = b.move_speed || 0;
+      } else if (sidebarSortBy.value === 'vision') {
+        valA = a.vision_radius || 0;
+        valB = b.vision_radius || 0;
+      }
+      
+      return sidebarSortOrder.value === 'asc' ? valA - valB : valB - valA;
+    });
+  }
+
+  return filtered;
 });
 
 // Categories list
@@ -547,6 +1010,7 @@ const onSidebarDragStart = (unit, e) => {
   draggedUnit.value = unit;
   e.dataTransfer.effectAllowed = 'copy';
   e.dataTransfer.setData('text/plain', unit.id);
+  e.dataTransfer.setData('drag-source', 'sidebar');
 };
 
 const onCanvasDrop = (e) => {
@@ -560,20 +1024,42 @@ const onCanvasDrop = (e) => {
   const dropX = e.clientX - rect.left;
   const dropY = e.clientY - rect.top;
   
-  const canvasX = (dropX - canvasOffset.value.x) / canvasZoom.value + 2500;
-  const canvasY = (dropY - canvasOffset.value.y) / canvasZoom.value + 2500;
+  const canvasX = (dropX - canvasOffset.value.x) / canvasZoom.value + 25000;
+  const canvasY = (dropY - canvasOffset.value.y) / canvasZoom.value + 25000;
   
   const rawX = canvasX - CARD_WIDTH / 2;
   const rawY = canvasY - 80;
+  const finalX = snapToGrid.value ? Math.round(rawX / 40) * 40 : rawX;
+  const finalY = snapToGrid.value ? Math.round(rawY / 40) * 40 : rawY;
   
-  placedUnits.value.push({
-    uuid: generateUuid(),
-    unitId: unit.id,
-    x: snapToGrid.value ? Math.round(rawX / 40) * 40 : rawX,
-    y: snapToGrid.value ? Math.round(rawY / 40) * 40 : rawY,
-    count: 1,
-    showFactoryMenu: false
-  });
+  pushToUndoStack();
+  
+  const dropCol = getTimelineColumnAt(canvasX, canvasY);
+  if (dropCol) {
+    const CARD_W = 220;
+    const CARD_H = 200;
+    const relX = Math.max(0, Math.min((dropCol.col.width || 250) - CARD_W, dropCol.relX - CARD_W/2));
+    const relY = Math.max(0, Math.min((dropCol.col.height || 420) - CARD_H - 45, dropCol.relY - 40));
+    placedUnits.value.push({
+      uuid: generateUuid(),
+      unitId: unit.id,
+      x: relX,
+      y: relY,
+      count: 1,
+      timelineColId: dropCol.col.id,
+      showFactoryMenu: false
+    });
+    autoFitColumnSize(dropCol.col);
+  } else {
+    placedUnits.value.push({
+      uuid: generateUuid(),
+      unitId: unit.id,
+      x: finalX,
+      y: finalY,
+      count: 1,
+      showFactoryMenu: false
+    });
+  }
   
   draggedUnit.value = null;
   saveToLocalStorage();
@@ -581,6 +1067,12 @@ const onCanvasDrop = (e) => {
 
 // Panning and marquee selection on background click
 const startPanning = (e) => {
+  if (e.button !== 0 && e.button !== 1) return; // Allow left-click or middle-click
+  
+  if (e.button === 1) {
+    e.preventDefault(); // Prevent middle-click auto-scroll
+  }
+  
   // If clicked inside interactive components, bypass canvas panning
   const isInteractive = 
     e.target.closest('.unit-card') || 
@@ -596,15 +1088,16 @@ const startPanning = (e) => {
     e.target.closest('.connection-badge') || 
     e.target.closest('.factory-popup');
 
-  if (isInteractive) {
+  // Allow middle click to pan anywhere, but left-click is blocked by interactive controls
+  if (isInteractive && e.button !== 1) {
     return;
   }
   
   const rect = canvasRef.value.getBoundingClientRect();
-  const canvasX = (e.clientX - rect.left - canvasOffset.value.x) / canvasZoom.value + 2500;
-  const canvasY = (e.clientY - rect.top - canvasOffset.value.y) / canvasZoom.value + 2500;
+  const canvasX = (e.clientX - rect.left - canvasOffset.value.x) / canvasZoom.value + 25000;
+  const canvasY = (e.clientY - rect.top - canvasOffset.value.y) / canvasZoom.value + 25000;
 
-  if (e.shiftKey) {
+  if (e.shiftKey && e.button === 0) { // Only shift + left-click starts marquee selection
     isSelecting.value = true;
     selectionBox.value = {
       startX: canvasX,
@@ -619,13 +1112,18 @@ const startPanning = (e) => {
       x: e.clientX - canvasOffset.value.x,
       y: e.clientY - canvasOffset.value.y
     };
-    selectedCardUuids.value = [];
+    if (e.button === 0 && !e.shiftKey) {
+      selectedCardUuids.value = [];
+    }
   }
   closeContextMenu();
 };
 
 const panCanvas = (e) => {
   const rect = canvasRef.value.getBoundingClientRect();
+  const mouseCanvasX = (e.clientX - rect.left - canvasOffset.value.x) / canvasZoom.value + 25000;
+  const mouseCanvasY = (e.clientY - rect.top - canvasOffset.value.y) / canvasZoom.value + 25000;
+  lastMouseCanvasPos.value = { x: mouseCanvasX, y: mouseCanvasY };
   
   if (isPanning.value) {
     canvasOffset.value = {
@@ -633,11 +1131,8 @@ const panCanvas = (e) => {
       y: e.clientY - panStart.value.y
     };
   } else if (isSelecting.value && selectionBox.value) {
-    const canvasX = (e.clientX - rect.left - canvasOffset.value.x) / canvasZoom.value + 2500;
-    const canvasY = (e.clientY - rect.top - canvasOffset.value.y) / canvasZoom.value + 2500;
-    
-    selectionBox.value.currentX = canvasX;
-    selectionBox.value.currentY = canvasY;
+    selectionBox.value.currentX = mouseCanvasX;
+    selectionBox.value.currentY = mouseCanvasY;
     
     const minX = Math.min(selectionBox.value.startX, selectionBox.value.currentX);
     const maxX = Math.max(selectionBox.value.startX, selectionBox.value.currentX);
@@ -645,17 +1140,23 @@ const panCanvas = (e) => {
     const maxY = Math.max(selectionBox.value.startY, selectionBox.value.currentY);
     
     selectedCardUuids.value = placedUnits.value.filter(u => {
+      let absX = u.x;
+      let absY = u.y;
+      if (u.timelineColId) {
+        const dropCol = getColumnAbsolutePosition(u.timelineColId);
+        if (dropCol) {
+          absX = dropCol.x + u.x;
+          absY = dropCol.y + u.y;
+        }
+      }
       return !(
-        u.x + CARD_WIDTH < minX ||
-        u.x > maxX ||
-        u.y + CARD_HEIGHT < minY ||
-        u.y > maxY
+        absX + CARD_WIDTH < minX ||
+        absX > maxX ||
+        absY + CARD_HEIGHT < minY ||
+        absY > maxY
       );
     }).map(u => u.uuid);
   } else if (activeDragCard.value) {
-    const mouseCanvasX = (e.clientX - rect.left - canvasOffset.value.x) / canvasZoom.value + 2500;
-    const mouseCanvasY = (e.clientY - rect.top - canvasOffset.value.y) / canvasZoom.value + 2500;
-    
     const rawX = mouseCanvasX - dragCardOffset.value.x;
     const rawY = mouseCanvasY - dragCardOffset.value.y;
     
@@ -692,9 +1193,6 @@ const panCanvas = (e) => {
       }
     }
   } else if (activeDragArea.value) {
-    const mouseCanvasX = (e.clientX - rect.left - canvasOffset.value.x) / canvasZoom.value + 2500;
-    const mouseCanvasY = (e.clientY - rect.top - canvasOffset.value.y) / canvasZoom.value + 2500;
-    
     const rawX = mouseCanvasX - dragAreaOffset.value.x;
     const rawY = mouseCanvasY - dragAreaOffset.value.y;
     
@@ -705,7 +1203,6 @@ const panCanvas = (e) => {
     const dy = nextY - activeDragArea.value.y;
     
     if (dx !== 0 || dy !== 0) {
-      // Drag all units inside this Group Area with it!
       const insideUnits = getAreaUnits(activeDragArea.value.uuid);
       insideUnits.forEach(u => {
         u.x += dx;
@@ -715,8 +1212,14 @@ const panCanvas = (e) => {
       activeDragArea.value.y = nextY;
     }
   } else if (activeConnectionDrag.value) {
-    activeConnectionDrag.value.currentX = (e.clientX - rect.left - canvasOffset.value.x) / canvasZoom.value + 2500;
-    activeConnectionDrag.value.currentY = (e.clientY - rect.top - canvasOffset.value.y) / canvasZoom.value + 2500;
+    activeConnectionDrag.value.currentX = mouseCanvasX;
+    activeConnectionDrag.value.currentY = mouseCanvasY;
+  } else if (activeDragTimeline.value) {
+    const rawX = mouseCanvasX - dragTimelineOffset.value.x;
+    const rawY = mouseCanvasY - dragTimelineOffset.value.y;
+    
+    activeDragTimeline.value.x = snapToGrid.value ? Math.round(rawX / 40) * 40 : rawX;
+    activeDragTimeline.value.y = snapToGrid.value ? Math.round(rawY / 40) * 40 : rawY;
   }
 };
 
@@ -724,10 +1227,39 @@ const stopPanning = () => {
   isPanning.value = false;
   isSelecting.value = false;
   selectionBox.value = null;
+  
+  if (activeDragCard.value) {
+    const dropCol = getTimelineColumnAt(lastMouseCanvasPos.value.x, lastMouseCanvasPos.value.y);
+    
+    placedUnits.value.forEach(u => {
+      if (u.uuid === activeDragCard.value.uuid || selectedCardUuids.value.includes(u.uuid)) {
+        if (dropCol) {
+          u.timelineColId = dropCol.col.id;
+          const colPos = getColumnAbsolutePosition(dropCol.col.id);
+          const CARD_W = 220;
+          const CARD_H = 200;
+          
+          // Calculate relative position inside column based on absolute coordinates
+          const rx = u.x - colPos.x;
+          const ry = u.y - colPos.y;
+          
+          u.x = Math.max(0, Math.min((dropCol.col.width || 250) - CARD_W, rx));
+          u.y = Math.max(0, Math.min((dropCol.col.height || 420) - CARD_H - 45, ry));
+          
+          autoFitColumnSize(dropCol.col);
+        } else {
+          u.timelineColId = null;
+        }
+      }
+    });
+  }
+  
   activeDragCard.value = null;
   activeDragArea.value = null;
+  activeDragTimeline.value = null;
   activeConnectionDrag.value = null;
-  saveToLocalStorage();
+  isResizingArea.value = false;
+  saveToLocalStorage(); // save final positions on drag end
 };
 
 const handleZoom = (e) => {
@@ -771,23 +1303,67 @@ const zoomOut = () => {
   saveToLocalStorage();
 };
 
+const toggleCardSelection = (uuid) => {
+  const idx = selectedCardUuids.value.indexOf(uuid);
+  if (idx > -1) {
+    selectedCardUuids.value.splice(idx, 1);
+  } else {
+    selectedCardUuids.value.push(uuid);
+  }
+};
+
 const resetZoom = () => {
   canvasZoom.value = 0.9;
   canvasOffset.value = { x: 100, y: 100 };
   saveToLocalStorage();
 };
 
-// Dragging a card
-const startDragCard = (placedUnit, e) => {
+// Mouse down handler on a card (supports Shift+Click selection and dragging)
+const onCardMousedown = (placedUnit, e) => {
   if (e.target.closest('.qty-controller') || e.target.closest('.close-btn') || e.target.closest('.card-actions') || e.target.closest('.factory-popup')) {
     return;
   }
+  
+  if (e.button !== 0) return; // Only trigger for left clicks
+  
   e.stopPropagation();
+  
+  if (e.shiftKey) {
+    e.preventDefault();
+    const idx = selectedCardUuids.value.indexOf(placedUnit.uuid);
+    if (idx > -1) {
+      selectedCardUuids.value.splice(idx, 1);
+    } else {
+      selectedCardUuids.value.push(placedUnit.uuid);
+    }
+    return;
+  } else {
+    if (!selectedCardUuids.value.includes(placedUnit.uuid)) {
+      selectedCardUuids.value = [];
+    }
+  }
+  
+  pushToUndoStack();
+  
+  // Convert any selected/dragged units inside timeline columns back to absolute canvas space
+  placedUnits.value.forEach(u => {
+    if (u.uuid === placedUnit.uuid || selectedCardUuids.value.includes(u.uuid)) {
+      if (u.timelineColId) {
+        const colPos = getColumnAbsolutePosition(u.timelineColId);
+        if (colPos) {
+          u.x = colPos.x + u.x;
+          u.y = colPos.y + u.y;
+          u.timelineColId = null;
+        }
+      }
+    }
+  });
+  
   activeDragCard.value = placedUnit;
   
   const rect = canvasRef.value.getBoundingClientRect();
-  const mouseCanvasX = (e.clientX - rect.left - canvasOffset.value.x) / canvasZoom.value + 2500;
-  const mouseCanvasY = (e.clientY - rect.top - canvasOffset.value.y) / canvasZoom.value + 2500;
+  const mouseCanvasX = (e.clientX - rect.left - canvasOffset.value.x) / canvasZoom.value + 25000;
+  const mouseCanvasY = (e.clientY - rect.top - canvasOffset.value.y) / canvasZoom.value + 25000;
   
   dragCardOffset.value = {
     x: mouseCanvasX - placedUnit.x,
@@ -798,18 +1374,495 @@ const startDragCard = (placedUnit, e) => {
 
 // Remove card and its connections
 const removePlacedUnit = (uuid) => {
+  pushToUndoStack();
   placedUnits.value = placedUnits.value.filter(u => u.uuid !== uuid);
   connections.value = connections.value.filter(c => c.fromUuid !== uuid && c.toUuid !== uuid);
   saveToLocalStorage();
 };
 
+const addOpponentToCanvas = (elementUuid, mode) => {
+  const node = getElement(elementUuid);
+  if (!node) return;
+  
+  const combatants = getCombatants(node);
+  if (combatants.length === 0) return;
+  const ourTotalMetalCost = combatants.reduce((sum, u) => sum + (u.cost * u.count), 0);
+  
+  const candidates = unitsData.filter(u => {
+    const isMobile = u.unit_types?.includes('UNITTYPE_Mobile');
+    const isStructure = u.unit_types?.includes('UNITTYPE_Structure');
+    const hasWeapon = u.weapons && u.weapons.length > 0;
+    return isMobile && !isStructure && hasWeapon && u.cost > 0;
+  });
+  
+  if (candidates.length === 0) return;
+  
+  let bestCandidate = null;
+  let bestScore = mode === 'hardest' ? Infinity : -Infinity;
+  
+  candidates.forEach(candidate => {
+    const count = Math.max(1, Math.round(ourTotalMetalCost / candidate.cost));
+    const opponentNode = {
+      uuid: 'temp-opp',
+      type: 'unit',
+      unitId: candidate.id,
+      count: count
+    };
+    const sim = runBattleSimulation(node, opponentNode);
+    if (!sim) return;
+    
+    let score = 0;
+    if (sim.winner === 'A') {
+      score = sim.remainingHpPercent;
+    } else if (sim.winner === 'B') {
+      score = -sim.remainingHpPercent;
+    } else {
+      score = 0;
+    }
+    
+    if (mode === 'hardest') {
+      if (score < bestScore) {
+        bestScore = score;
+        bestCandidate = { candidate, count };
+      }
+    } else {
+      if (score > bestScore) {
+        bestScore = score;
+        bestCandidate = { candidate, count };
+      }
+    }
+  });
+  
+  if (!bestCandidate) return;
+  
+  const cardUuid = generateUuid();
+  const rawX = node.x + (node.width || CARD_WIDTH) + 150;
+  const rawY = node.y + (node.height || 180) / 2 - 80;
+  
+  placedUnits.value.push({
+    uuid: cardUuid,
+    unitId: bestCandidate.candidate.id,
+    x: snapToGrid.value ? Math.round(rawX / 40) * 40 : rawX,
+    y: snapToGrid.value ? Math.round(rawY / 40) * 40 : rawY,
+    count: bestCandidate.count,
+    showFactoryMenu: false
+  });
+  
+  connections.value.push({
+    uuid: generateUuid(),
+    fromUuid: node.uuid,
+    toUuid: cardUuid,
+    settings: {
+      initialDistance: 300,
+      showRanges: false,
+      positions: {}
+    }
+  });
+  
+  calculateAllBattles();
+  saveToLocalStorage();
+};
+
+const openCounterFinderModal = (nodeUuid) => {
+  counterSelectedNodeUuid.value = nodeUuid;
+  calculateCounterRatings();
+  showCounterModal.value = true;
+};
+
+// Find the minimum count of `candidate` that defeats `node` in simulation.
+// Uses an optimized binary search in fastMode to prevent blocking the UI thread.
+const findMinWinningCount = (node, candidateUnitId) => {
+  const combatants = getCombatants(node);
+  if (combatants.length === 0) return { count: 1, sim: null };
+  
+  const ourCost = combatants.reduce((sum, u) => sum + (u.cost * u.count), 0);
+  const candidateSpec = getUnitById(candidateUnitId);
+  if (!candidateSpec) return { count: 1, sim: null };
+  const candidateCost = candidateSpec.cost || 100;
+  
+  const costEquivalent = Math.max(1, Math.round(ourCost / candidateCost));
+  const maxSearchLimit = Math.min(30, Math.max(10, costEquivalent * 3));
+  
+  let low = 1;
+  let high = maxSearchLimit;
+  let bestCount = -1;
+  let bestSim = null;
+  
+  const fastSettings = { fastMode: true, maxTime: 45 };
+  
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    const testNode = { uuid: 'temp-opp', type: 'unit', unitId: candidateUnitId, count: mid };
+    const sim = extRunBattleSimulation(node, testNode, null, fastSettings, lang.value, getUnitById, getCombatants);
+    
+    if (sim && sim.winner === 'B') {
+      bestCount = mid;
+      bestSim = sim;
+      high = mid - 1; // Try to find a smaller count
+    } else {
+      low = mid + 1; // Need more units to win
+    }
+  }
+  
+  if (bestCount !== -1) {
+    return { count: bestCount, sim: bestSim };
+  }
+  
+  return { count: maxSearchLimit, sim: null };
+};
+
+const calculateCounterRatings = () => {
+  const nodeUuid = counterSelectedNodeUuid.value;
+  const node = getElement(nodeUuid);
+  if (!node) return;
+  
+  const combatants = getCombatants(node);
+  if (combatants.length === 0) return;
+  const ourTotalMetalCost = combatants.reduce((sum, u) => sum + (u.cost * u.count), 0);
+  const ourAvgDps = combatants.reduce((sum, u) => sum + (u.dps || 0), 0) / combatants.length;
+  
+  // Exclude self-unit types from candidates
+  const selfUnitIds = new Set(combatants.map(u => u.unitId));
+  
+  const candidates = unitsData.filter(u => {
+    const isMobile = u.unit_types?.includes('UNITTYPE_Mobile');
+    const isStructure = u.unit_types?.includes('UNITTYPE_Structure');
+    const isCmd = u.category === 'commander' || u.id.includes('commander');
+    const hasWeapon = u.weapons && u.weapons.length > 0;
+    const isSelf = selfUnitIds.has(u.id);
+    if (!isMobile || isStructure || isCmd || !hasWeapon || u.cost <= 0 || isSelf) {
+      return false;
+    }
+    // Only include candidates that can target at least one of our combatants
+    return u.weapons.some(wpn => 
+      combatants.some(target => canTargetLayer(wpn.target_layers, target.layers))
+    );
+  });
+
+  // Check if pregenerated cache has the best counter for a single-unit node
+  const allUnitIds = combatants.map(u => u.unitId);
+  const cachedBestId = allUnitIds.length === 1 ? hardestCountersCache[allUnitIds[0]] : null;
+  
+  const ratings = candidates.map(candidate => {
+    // Find MINIMUM count at which this candidate beats the node
+    const { count: minCount, sim } = findMinWinningCount(node, candidate.id);
+    
+    let score = 0;
+    let resultLabel = '';
+    let resultClass = '';
+    
+    if (sim && sim.winner === 'B') {
+      // Wins: lower cost-per-win is better. Score inversely proportional to total cost spent.
+      const totalCostSpent = minCount * candidate.cost;
+      const costRatio = ourTotalMetalCost / (totalCostSpent || 1);
+      score += 1000 + costRatio * 500 + sim.remainingHpPercent * 2;
+      resultLabel = lang.value === 'ru'
+        ? `Победа (${sim.remainingHpPercent}% HP)`
+        : `Wins (${sim.remainingHpPercent}% HP)`;
+      resultClass = 'text-green';
+    } else {
+      // Never wins or draws — heavily penalise
+      score -= 2000;
+      resultLabel = lang.value === 'ru' ? 'Не побеждает' : 'Cannot win';
+      resultClass = 'text-red';
+    }
+    
+    if ((candidate.dps || 0) > ourAvgDps) score += 100;
+    if (candidate.cost < (ourTotalMetalCost / (minCount || 1))) score += 100;
+    
+    // Prioritize pregenerated best counter
+    if (cachedBestId && candidate.id === cachedBestId) score += 2000;
+    
+    return {
+      unitId: candidate.id,
+      name: candidate.name,
+      icon: candidate.icon,
+      cost: candidate.cost,
+      dps: candidate.dps || 0,
+      spawnCount: minCount,
+      sim,
+      resultLabel,
+      resultClass,
+      score: Math.round(score)
+    };
+  });
+  
+  ratings.sort((a, b) => b.score - a.score);
+  counterRatings.value = ratings;
+};
+
+const spawnCounterOpponent = (ratingItem) => {
+  const nodeUuid = counterSelectedNodeUuid.value;
+  const node = getElement(nodeUuid);
+  if (!node) return;
+  
+  const cardUuid = generateUuid();
+  const rawX = node.x + (node.width || CARD_WIDTH) + 150;
+  const rawY = node.y + (node.height || 180) / 2 - 80;
+  
+  placedUnits.value.push({
+    uuid: cardUuid,
+    unitId: ratingItem.unitId,
+    x: snapToGrid.value ? Math.round(rawX / 40) * 40 : rawX,
+    y: snapToGrid.value ? Math.round(rawY / 40) * 40 : rawY,
+    count: ratingItem.spawnCount,
+    showFactoryMenu: false
+  });
+  
+  connections.value.push({
+    uuid: generateUuid(),
+    fromUuid: node.uuid,
+    toUuid: cardUuid,
+    settings: {
+      initialDistance: 300,
+      showRanges: false,
+      positions: {},
+      rangeMultiplier: 1.0
+    }
+  });
+  
+  calculateAllBattles();
+  saveToLocalStorage();
+  showCounterModal.value = false;
+};
+
+const getVictoryEaseDetails = (hpPercent) => {
+  return extGetVictoryEaseDetails(hpPercent, lang.value);
+};
+
+const downloadResultCardImage = async () => {
+  if (!animSim.value) return;
+  const sim = animSim.value.sim;
+  
+  const imageSources = {
+    teamA: sim.a.icon,
+    teamB: sim.b.icon
+  };
+  
+  const survivorsA = sim.a.detailedUnits?.filter(u => u.survivedCount > 0) || [];
+  const survivorsB = sim.b.detailedUnits?.filter(u => u.survivedCount > 0) || [];
+  
+  survivorsA.forEach((u, i) => {
+    imageSources['survA_' + i] = u.icon;
+  });
+  survivorsB.forEach((u, i) => {
+    imageSources['survB_' + i] = u.icon;
+  });
+  
+  const loadedImages = {};
+  await Promise.all(
+    Object.keys(imageSources).map(async key => {
+      const src = imageSources[key];
+      if (!src) return;
+      return new Promise(resolve => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = src;
+        img.onload = () => {
+          loadedImages[key] = img;
+          resolve();
+        };
+        img.onerror = () => {
+          resolve();
+        };
+      });
+    })
+  );
+  
+  const canvas = document.createElement('canvas');
+  canvas.width = 800;
+  canvas.height = 560;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  
+  const bgGrad = ctx.createRadialGradient(400, 280, 50, 400, 280, 500);
+  bgGrad.addColorStop(0, '#0c101f');
+  bgGrad.addColorStop(1, '#05070e');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, 800, 560);
+  
+  ctx.strokeStyle = 'rgba(6, 182, 212, 0.04)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < 800; x += 40) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, 560);
+    ctx.stroke();
+  }
+  for (let y = 0; y < 560; y += 40) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(800, y);
+    ctx.stroke();
+  }
+  
+  const isDraw = sim.winner === 'Draw';
+  const neonColor = isDraw ? '#f97316' : '#22c55e';
+  ctx.strokeStyle = neonColor;
+  ctx.lineWidth = 3;
+  ctx.shadowColor = neonColor;
+  ctx.shadowBlur = 10;
+  ctx.strokeRect(15, 15, 770, 530);
+  
+  ctx.shadowBlur = 0;
+  
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(6, 182, 212, 0.6)';
+  ctx.font = 'bold 10px monospace';
+  ctx.fillText('PLANETARY ANNIHILATION COMBAT METRICS', 400, 45);
+  
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 24px sans-serif';
+  ctx.fillText(lang.value === 'ru' ? 'БОЕВОЙ ОТЧЕТ СИМУЛЯЦИИ' : 'COMBAT SIMULATION REPORT', 400, 75);
+  
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(50, 95);
+  ctx.lineTo(750, 95);
+  ctx.stroke();
+  
+  ctx.textAlign = 'left';
+  if (loadedImages.teamA) {
+    ctx.drawImage(loadedImages.teamA, 60, 120, 40, 40);
+  }
+  ctx.font = 'bold 18px sans-serif';
+  ctx.fillStyle = sim.winner === 'A' ? '#22c55e' : '#cbd5e1';
+  ctx.fillText(sim.a.name, 115, 138);
+  ctx.font = '12px sans-serif';
+  ctx.fillStyle = '#94a3b8';
+  ctx.fillText(`${lang.value === 'ru' ? 'Металл' : 'Cost'}: ${sim.a.detailedUnits?.reduce((sum, u) => sum + u.cost * u.initialCount, 0)} M`, 115, 156);
+  
+  ctx.textAlign = 'right';
+  if (loadedImages.teamB) {
+    ctx.drawImage(loadedImages.teamB, 700, 120, 40, 40);
+  }
+  ctx.font = 'bold 18px sans-serif';
+  ctx.fillStyle = sim.winner === 'B' ? '#ef4444' : '#cbd5e1';
+  ctx.fillText(sim.b.name, 685, 138);
+  ctx.font = '12px sans-serif';
+  ctx.fillStyle = '#94a3b8';
+  ctx.fillText(`${lang.value === 'ru' ? 'Металл' : 'Cost'}: ${sim.b.detailedUnits?.reduce((sum, u) => sum + u.cost * u.initialCount, 0)} M`, 685, 156);
+  
+  ctx.textAlign = 'center';
+  ctx.font = 'italic bold 20px sans-serif';
+  ctx.fillStyle = '#e2e8f0';
+  ctx.fillText('VS', 400, 145);
+  ctx.font = '11px sans-serif';
+  ctx.fillStyle = '#64748b';
+  ctx.fillText(`${lang.value === 'ru' ? 'Время боя' : 'Duration'}: ${sim.time}s`, 400, 165);
+  
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+  ctx.beginPath();
+  ctx.moveTo(50, 190);
+  ctx.lineTo(750, 190);
+  ctx.stroke();
+  
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+  ctx.fillRect(50, 205, 700, 80);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+  ctx.strokeRect(50, 205, 700, 80);
+  
+  ctx.fillStyle = sim.winner === 'Draw' ? '#f97316' : '#22c55e';
+  ctx.font = 'bold 18px sans-serif';
+  ctx.fillText(sim.resultText, 400, 238);
+  
+  if (sim.winner !== 'Draw') {
+    const details = getVictoryEaseDetails(sim.remainingHpPercent);
+    ctx.font = '13px sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText(`${lang.value === 'ru' ? 'Лёгкость победы' : 'Victory Ease'}: `, 340, 265);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = details.color === 'var(--color-green)' ? '#22c55e' : (details.color === 'var(--color-orange)' ? '#f97316' : '#ef4444');
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillText(`${details.text} (${sim.remainingHpPercent}%)`, 450, 265);
+  } else {
+    ctx.font = '13px sans-serif';
+    ctx.fillStyle = '#64748b';
+    ctx.fillText(lang.value === 'ru' ? 'Все мобильные единицы были уничтожены.' : 'All mobile forces were mutually destroyed.', 400, 265);
+  }
+  ctx.textAlign = 'center';
+  
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 13px sans-serif';
+  ctx.fillText(lang.value === 'ru' ? 'ВЫЖИВШИЕ ЮНИТЫ:' : 'SURVIVING UNITS:', 60, 315);
+  
+  let drawY = 345;
+  let countA = 0;
+  ctx.font = '12px sans-serif';
+  
+  survivorsA.forEach((u, idx) => {
+    if (idx >= 6) return;
+    const img = loadedImages['survA_' + idx];
+    if (img) {
+      ctx.drawImage(img, 60, drawY + countA * 30 - 15, 20, 20);
+    }
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillText(u.name, 90, drawY + countA * 30);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#22c55e';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.fillText(`${u.survivedCount}/${u.initialCount}`, 320, drawY + countA * 30);
+    ctx.textAlign = 'left';
+    ctx.font = '12px sans-serif';
+    countA++;
+  });
+  
+  if (survivorsA.length === 0) {
+    ctx.fillStyle = '#64748b';
+    ctx.fillText(lang.value === 'ru' ? 'Выживших нет' : 'No survivors', 60, drawY);
+  }
+  
+  let countB = 0;
+  survivorsB.forEach((u, idx) => {
+    if (idx >= 6) return;
+    const img = loadedImages['survB_' + idx];
+    if (img) {
+      ctx.drawImage(img, 450, drawY + countB * 30 - 15, 20, 20);
+    }
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillText(u.name, 480, drawY + countB * 30);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#ef4444';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.fillText(`${u.survivedCount}/${u.initialCount}`, 720, drawY + countB * 30);
+    ctx.textAlign = 'left';
+    ctx.font = '12px sans-serif';
+    countB++;
+  });
+  
+  if (survivorsB.length === 0) {
+    ctx.fillStyle = '#64748b';
+    ctx.fillText(lang.value === 'ru' ? 'Выживших нет' : 'No survivors', 450, drawY);
+  }
+  
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+  ctx.font = '9px monospace';
+  ctx.fillText('github.com/Rimuwu/PA-Dashboard', 400, 530);
+
+  try {
+    const link = document.createElement('a');
+    link.download = `battle-report-${sim.winner === 'Draw' ? 'draw' : 'winner-' + sim.winner}-${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch (err) {
+    console.error('Failed to download combat report image', err);
+  }
+};
+
 // Quantity adjusters
 const adjustCount = (placedUnit, amount) => {
+  pushToUndoStack();
   placedUnit.count = Math.max(1, Math.min(10000, placedUnit.count + amount));
   saveToLocalStorage();
 };
 
 const updateCount = (placedUnit, e) => {
+  pushToUndoStack();
   const val = parseInt(e.target.value);
   placedUnit.count = isNaN(val) ? 1 : Math.max(1, Math.min(10000, val));
   saveToLocalStorage();
@@ -820,12 +1873,11 @@ const startConnection = (placedElement, side, e) => {
   e.stopPropagation();
   e.preventDefault();
   
-  const isArea = placedElement.width !== undefined;
-  const w = isArea ? placedElement.width : CARD_WIDTH;
-  const h = isArea ? placedElement.height : CARD_HEIGHT;
+  const el = getElement(placedElement.uuid);
+  if (!el) return;
   
-  const startX = side === 'right' ? placedElement.x + w : placedElement.x;
-  const startY = placedElement.y + h / 2;
+  const startX = side === 'right' ? el.x + el.width : el.x;
+  const startY = el.y + el.height / 2;
   
   activeConnectionDrag.value = {
     fromUuid: placedElement.uuid,
@@ -852,6 +1904,7 @@ const completeConnection = (targetElement, e) => {
     );
     
     if (!exists) {
+      pushToUndoStack();
       connections.value.push({
         uuid: generateUuid(),
         fromUuid,
@@ -874,6 +1927,7 @@ const spawnFromFactory = (factory, buildUnitId) => {
   const rawX = factory.x + CARD_WIDTH + 60;
   const rawY = factory.y;
   
+  pushToUndoStack();
   placedUnits.value.push({
     uuid: generateUuid(),
     unitId: buildUnitId,
@@ -890,9 +1944,11 @@ const spawnFromFactory = (factory, buildUnitId) => {
 // Clear the board
 const clearBoard = () => {
   if (confirm(lang.value === 'ru' ? "Вы уверены, что хотите очистить весь холст?" : "Are you sure you want to clear the entire comparison canvas?")) {
+    pushToUndoStack();
     placedUnits.value = [];
     groupAreas.value = [];
     connections.value = [];
+    timelinePanels.value = [];
     selectedCardUuids.value = [];
     saveToLocalStorage();
   }
@@ -903,7 +1959,8 @@ const saveToFile = () => {
   const dataStr = JSON.stringify({
     placedUnits: placedUnits.value,
     groupAreas: groupAreas.value,
-    connections: connections.value
+    connections: connections.value,
+    timelinePanels: timelinePanels.value
   }, null, 2);
   
   const blob = new Blob([dataStr], { type: 'application/json' });
@@ -931,9 +1988,11 @@ const triggerFileInput = () => {
       try {
         const data = JSON.parse(evt.target.result);
         if (Array.isArray(data.placedUnits)) {
+          pushToUndoStack();
           placedUnits.value = data.placedUnits;
           groupAreas.value = Array.isArray(data.groupAreas) ? data.groupAreas : [];
           connections.value = Array.isArray(data.connections) ? data.connections : [];
+          timelinePanels.value = Array.isArray(data.timelinePanels) ? data.timelinePanels : [];
           selectedCardUuids.value = [];
           resetZoom();
           saveToLocalStorage();
@@ -974,6 +2033,7 @@ const saveToLocalStorage = () => {
   localStorage.setItem('pa_canvas_layout_data', JSON.stringify({
     placedUnits: placedUnits.value,
     groupAreas: groupAreas.value,
+    timelinePanels: timelinePanels.value,
     connections: connections.value,
     canvasOffset: canvasOffset.value,
     canvasZoom: canvasZoom.value,
@@ -992,6 +2052,7 @@ const loadFromLocalStorage = () => {
       const data = JSON.parse(raw);
       if (Array.isArray(data.placedUnits)) placedUnits.value = data.placedUnits;
       if (Array.isArray(data.groupAreas)) groupAreas.value = data.groupAreas;
+      if (Array.isArray(data.timelinePanels)) timelinePanels.value = data.timelinePanels;
       if (Array.isArray(data.connections)) {
         connections.value = data.connections.map(c => {
           if (!c.settings) {
@@ -1019,6 +2080,7 @@ const loadFromLocalStorage = () => {
 
 // Remove connection port link
 const removeConnection = (uuid) => {
+  pushToUndoStack();
   connections.value = connections.value.filter(c => c.uuid !== uuid);
   if (simulationResults.value[uuid]) {
     delete simulationResults.value[uuid];
@@ -1080,8 +2142,10 @@ const startAnimatedSimulation = (conn) => {
     displayedLog: [],
     aHpCur: sim.totalMaxHpA,
     bHpCur: sim.totalMaxHpB,
+    simTimeCur: 0,
     isPlaying: true,
     intervalId: null,
+    playbackSpeed: simSettings.value.playbackSpeed || 1.0,
     done: false
   };
 
@@ -1096,6 +2160,7 @@ const startAnimatedSimulation = (conn) => {
     const tick = sim.ticks[state.currentTickIndex];
     state.aHpCur = tick.aHp;
     state.bHpCur = tick.bHp;
+    state.simTimeCur = tick.time || 0;
     state.displayedLog = [...state.displayedLog, ...(tick.newLogs || [])];
     state.currentTickIndex++;
     animSim.value = { ...state };
@@ -1108,14 +2173,146 @@ const startAnimatedSimulation = (conn) => {
   animSim.value = { ...state };
 };
 
-// Center canvas around origin (2500, 2500)
-const goToCenter = () => {
-  if (!canvasRef.value) return;
-  const rect = canvasRef.value.getBoundingClientRect();
-  canvasOffset.value = {
-    x: rect.width / 2 - 2500 * canvasZoom.value,
-    y: rect.height / 2 - 2500 * canvasZoom.value
+const startAnimatedSim = () => {
+  if (!animSim.value || animSim.value.isPlaying) return;
+  
+  if (animSim.value.intervalId) {
+    clearInterval(animSim.value.intervalId);
+  }
+  
+  animSim.value.isPlaying = true;
+  animSim.value.done = false;
+  
+  const advanceTick = () => {
+    if (!animSim.value) return;
+    const state = animSim.value;
+    if (state.currentTickIndex >= state.sim.ticks.length) {
+      clearInterval(state.intervalId);
+      state.isPlaying = false;
+      state.done = true;
+      animSim.value = { ...state };
+      return;
+    }
+    const tick = state.sim.ticks[state.currentTickIndex];
+    state.aHpCur = tick.aHp;
+    state.bHpCur = tick.bHp;
+    const newLogs = tick.newLogs || [];
+    newLogs.forEach(newLog => {
+      if (!state.displayedLog.some(log => log.time === newLog.time && log.event === newLog.event)) {
+        state.displayedLog.push(newLog);
+      }
+    });
+    state.currentTickIndex++;
+    animSim.value = { ...state };
   };
+  
+  const TICK_INTERVAL_MS = Math.round(25 / (simSettings.value.playbackSpeed || 1.0));
+  animSim.value.intervalId = setInterval(advanceTick, TICK_INTERVAL_MS);
+  animSim.value = { ...animSim.value };
+};
+
+const pauseAnimatedSim = () => {
+  if (!animSim.value) return;
+  if (animSim.value.intervalId) {
+    clearInterval(animSim.value.intervalId);
+    animSim.value.intervalId = null;
+  }
+  animSim.value.isPlaying = false;
+  animSim.value = { ...animSim.value };
+};
+
+const stepAnimatedSim = () => {
+  if (!animSim.value || animSim.value.isPlaying) return;
+  const state = animSim.value;
+  if (state.currentTickIndex >= state.sim.ticks.length) return;
+  
+  const tick = state.sim.ticks[state.currentTickIndex];
+  state.aHpCur = tick.aHp;
+  state.bHpCur = tick.bHp;
+  const newLogs = tick.newLogs || [];
+  newLogs.forEach(newLog => {
+    if (!state.displayedLog.some(log => log.time === newLog.time && log.event === newLog.event)) {
+      state.displayedLog.push(newLog);
+    }
+  });
+  state.currentTickIndex++;
+  if (state.currentTickIndex >= state.sim.ticks.length) {
+    state.done = true;
+  }
+  animSim.value = { ...state };
+};
+
+const setPlaybackSpeed = (speed) => {
+  simSettings.value.playbackSpeed = speed;
+  saveToLocalStorage();
+  if (animSim.value) {
+    if (animSim.value.isPlaying) {
+      clearInterval(animSim.value.intervalId);
+      
+      const advanceTick = () => {
+        if (!animSim.value) return;
+        const state = animSim.value;
+        if (state.currentTickIndex >= state.sim.ticks.length) {
+          clearInterval(state.intervalId);
+          state.isPlaying = false;
+          state.done = true;
+          animSim.value = { ...state };
+          return;
+        }
+        const tick = state.sim.ticks[state.currentTickIndex];
+        state.aHpCur = tick.aHp;
+        state.bHpCur = tick.bHp;
+        const newLogs = tick.newLogs || [];
+        newLogs.forEach(newLog => {
+          if (!state.displayedLog.some(log => log.time === newLog.time && log.event === newLog.event)) {
+            state.displayedLog.push(newLog);
+          }
+        });
+        state.currentTickIndex++;
+        animSim.value = { ...state };
+      };
+      
+      const TICK_INTERVAL_MS = Math.round(25 / speed);
+      animSim.value.intervalId = setInterval(advanceTick, TICK_INTERVAL_MS);
+    }
+    animSim.value = { ...animSim.value };
+  }
+};
+
+const seekAnimatedSim = (tickIndex) => {
+  if (!animSim.value) return;
+  
+  if (animSim.value.isPlaying) {
+    pauseAnimatedSim();
+  }
+  
+  const state = animSim.value;
+  const limit = Math.max(0, Math.min(tickIndex, state.sim.ticks.length - 1));
+  state.currentTickIndex = limit;
+  
+  let logs = [];
+  for (let i = 0; i <= limit; i++) {
+    const tick = state.sim.ticks[i];
+    if (tick && tick.newLogs) {
+      logs.push(...tick.newLogs);
+    }
+  }
+  state.displayedLog = logs;
+  
+  const currentTick = state.sim.ticks[limit];
+  if (currentTick) {
+    state.aHpCur = currentTick.aHp;
+    state.bHpCur = currentTick.bHp;
+  }
+  
+  state.done = (limit >= state.sim.ticks.length - 1);
+  animSim.value = { ...state };
+};
+
+// Center canvas around default camera viewport coordinates (100, 100) and reset zoom
+const goToCenter = () => {
+  canvasOffset.value = { x: 100, y: 100 };
+  canvasZoom.value = 0.9;
   saveToLocalStorage();
 };
 
@@ -1123,8 +2320,8 @@ const goToCenter = () => {
 const onCanvasContextMenu = (e) => {
   e.preventDefault();
   const rect = canvasRef.value.getBoundingClientRect();
-  const canvasX = (e.clientX - rect.left - canvasOffset.value.x) / canvasZoom.value + 2500;
-  const canvasY = (e.clientY - rect.top - canvasOffset.value.y) / canvasZoom.value + 2500;
+  const canvasX = (e.clientX - rect.left - canvasOffset.value.x) / canvasZoom.value + 25000;
+  const canvasY = (e.clientY - rect.top - canvasOffset.value.y) / canvasZoom.value + 25000;
   
   contextMenu.value = {
     x: e.clientX,
@@ -1173,6 +2370,7 @@ const onConnectionContextMenu = (conn, e) => {
 
 const duplicateSelectedCards = () => {
   if (selectedCardUuids.value.length === 0) return;
+  pushToUndoStack();
   const newCards = [];
   placedUnits.value.forEach(u => {
     if (selectedCardUuids.value.includes(u.uuid)) {
@@ -1192,6 +2390,7 @@ const duplicateSelectedCards = () => {
 
 const deleteSelectedCards = () => {
   if (selectedCardUuids.value.length === 0) return;
+  pushToUndoStack();
   placedUnits.value = placedUnits.value.filter(u => !selectedCardUuids.value.includes(u.uuid));
   connections.value = connections.value.filter(c => !selectedCardUuids.value.includes(c.fromUuid) && !selectedCardUuids.value.includes(c.toUuid));
   selectedCardUuids.value = [];
@@ -1203,6 +2402,7 @@ const groupSelectedIntoArea = () => {
   const selectedCards = placedUnits.value.filter(u => selectedCardUuids.value.includes(u.uuid));
   if (selectedCards.length === 0) return;
   
+  pushToUndoStack();
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   selectedCards.forEach(c => {
     if (c.x < minX) minX = c.x;
@@ -1237,6 +2437,10 @@ const handleKeyDown = (e) => {
   if (e.key === 'Escape') {
     closeContextMenu();
   }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+    e.preventDefault();
+    undoLastAction();
+  }
 };
 
 // Group Area dragging and resizing systems
@@ -1245,11 +2449,12 @@ const startDragArea = (area, e) => {
     return;
   }
   e.stopPropagation();
+  pushToUndoStack();
   activeDragArea.value = area;
   
   const rect = canvasRef.value.getBoundingClientRect();
-  const mouseCanvasX = (e.clientX - rect.left - canvasOffset.value.x) / canvasZoom.value + 2500;
-  const mouseCanvasY = (e.clientY - rect.top - canvasOffset.value.y) / canvasZoom.value + 2500;
+  const mouseCanvasX = (e.clientX - rect.left - canvasOffset.value.x) / canvasZoom.value + 25000;
+  const mouseCanvasY = (e.clientY - rect.top - canvasOffset.value.y) / canvasZoom.value + 25000;
   
   dragAreaOffset.value = {
     x: mouseCanvasX - area.x,
@@ -1261,6 +2466,7 @@ const startDragArea = (area, e) => {
 const startResizeArea = (area, e) => {
   e.stopPropagation();
   e.preventDefault();
+  pushToUndoStack();
   const startWidth = area.width || 380;
   const startHeight = area.height || 260;
   const startX = e.clientX;
@@ -1296,6 +2502,7 @@ const getAreaUnits = (areaUuid) => {
   const h = area.height || 260;
   
   return placedUnits.value.filter(unit => {
+    if (unit.timelineColId) return false;
     const cx = unit.x + CARD_WIDTH / 2;
     const cy = unit.y + CARD_HEIGHT / 2;
     return cx >= area.x && cx <= area.x + w &&
@@ -1303,8 +2510,27 @@ const getAreaUnits = (areaUuid) => {
   });
 };
 
+const compareSelectedUnits = () => {
+  const selectedCards = placedUnits.value.filter(u => selectedCardUuids.value.includes(u.uuid));
+  const uniqueUnitIds = Array.from(new Set(selectedCards.map(u => u.unitId)));
+  if (uniqueUnitIds.length > 0) {
+    compareUnitIds.value = uniqueUnitIds;
+    showCompareModal.value = true;
+  }
+};
+
+const compareAreaUnits = (areaUuid) => {
+  const insideUnits = getAreaUnits(areaUuid);
+  const uniqueUnitIds = Array.from(new Set(insideUnits.map(u => u.unitId)));
+  if (uniqueUnitIds.length > 0) {
+    compareUnitIds.value = uniqueUnitIds;
+    showCompareModal.value = true;
+  }
+};
+
 // Context Menu command actions
 const addGroupArea = (x, y) => {
+  pushToUndoStack();
   groupAreas.value.push({
     uuid: generateUuid(),
     name: lang.value === 'ru' ? `Группа ${groupAreas.value.length + 1}` : `Group ${groupAreas.value.length + 1}`,
@@ -1320,6 +2546,7 @@ const addGroupArea = (x, y) => {
 const duplicateCard = (cardUuid) => {
   const orig = placedUnits.value.find(u => u.uuid === cardUuid);
   if (!orig) return;
+  pushToUndoStack();
   placedUnits.value.push({
     uuid: generateUuid(),
     unitId: orig.unitId,
@@ -1348,6 +2575,7 @@ const sendToBack = (cardUuid) => {
 };
 
 const deleteAreaUnits = (areaUuid) => {
+  pushToUndoStack();
   const inside = getAreaUnits(areaUuid);
   const uuids = inside.map(u => u.uuid);
   placedUnits.value = placedUnits.value.filter(u => !uuids.includes(u.uuid));
@@ -1356,6 +2584,7 @@ const deleteAreaUnits = (areaUuid) => {
 };
 
 const deleteGroupArea = (areaUuid) => {
+  pushToUndoStack();
   groupAreas.value = groupAreas.value.filter(a => a.uuid !== areaUuid);
   connections.value = connections.value.filter(c => c.fromUuid !== areaUuid && c.toUuid !== areaUuid);
   saveToLocalStorage();
@@ -1377,6 +2606,7 @@ const recalculateAreaBattle = (area) => {
 };
 
 const clearCardConnections = (cardUuid) => {
+  pushToUndoStack();
   connections.value = connections.value.filter(c => c.fromUuid !== cardUuid && c.toUuid !== cardUuid);
   saveToLocalStorage();
 };
@@ -1393,6 +2623,7 @@ const overlappingCardUuids = computed(() => {
     for (let j = i + 1; j < list.length; j++) {
       const a = list[i];
       const b = list[j];
+      if (a.timelineColId !== b.timelineColId) continue;
       const collides = !(
         a.x + CARD_WIDTH <= b.x ||
         b.x + CARD_WIDTH <= a.x ||
@@ -1412,10 +2643,19 @@ const overlappingCardUuids = computed(() => {
 const getElement = (uuid) => {
   const u = placedUnits.value.find(x => x.uuid === uuid);
   if (u) {
+    let absX = u.x;
+    let absY = u.y;
+    if (u.timelineColId) {
+      const dropCol = getColumnAbsolutePosition(u.timelineColId);
+      if (dropCol) {
+        absX = dropCol.x + u.x;
+        absY = dropCol.y + u.y;
+      }
+    }
     return {
       uuid: u.uuid,
-      x: u.x,
-      y: u.y,
+      x: absX,
+      y: absY,
       width: CARD_WIDTH,
       height: 180,
       type: 'unit',
@@ -1436,32 +2676,6 @@ const getElement = (uuid) => {
     };
   }
   return null;
-};
-
-// Helper to normalize layer names across different PA spec versions
-const normalizeLayer = (l) => {
-  if (!l) return '';
-  const str = String(l).toLowerCase().replace('wl_', '').replace('horizontal', '');
-  if (str.includes('orbital')) return 'orbital';
-  if (str.includes('air')) return 'air';
-  if (str.includes('land') || str.includes('ground') || str.includes('surface')) return 'land';
-  if (str.includes('water') || (str.includes('sea') && !str.includes('seafloor'))) return 'sea';
-  if (str.includes('seafloor') || str.includes('underwater')) return 'seafloor';
-  return str;
-};
-
-const canTargetLayer = (wpnTargetLayers, unitLayers) => {
-  if (!wpnTargetLayers || wpnTargetLayers.length === 0) return true;
-  if (!unitLayers || unitLayers.length === 0) return true;
-  
-  const normalizedUnitLayers = unitLayers.map(normalizeLayer);
-  return wpnTargetLayers.some(wpnL => {
-    const normWpn = normalizeLayer(wpnL);
-    if (normWpn === 'anysurface' || normWpn === 'anyhorizontalgroundorwatersurface') {
-      return normalizedUnitLayers.includes('land') || normalizedUnitLayers.includes('sea');
-    }
-    return normalizedUnitLayers.includes(normWpn);
-  });
 };
 
 // Dynamic combatants compiler: groups all stack units in Area or returns single card unit
@@ -1504,399 +2718,9 @@ const getCombatants = (node) => {
 };
 
 // Dynamic battle simulator running mass group or card combat
-const runBattleSimulation = (nodeA, nodeB, conn = null) => {
-  const listA = getCombatants(nodeA);
-  const listB = getCombatants(nodeB);
-  
-  if (listA.length === 0 || listB.length === 0) return null;
-  
-  const initialDistance = conn?.settings?.initialDistance || simSettings.value.initialDistance || 300;
-  
-  let aList = [];
-  listA.forEach((stack, stackIdx) => {
-    const spec = getUnitById(stack.unitId);
-    const stored = conn?.settings?.positions?.[stack.uuid];
-    const defaultX = -initialDistance / 2 - stackIdx * 25;
-    const defaultY = (stackIdx - Math.floor(listA.length / 2)) * 20;
-    const pos2d = stored ? (typeof stored === 'number' ? { x: stored, y: 0 } : stored) : { x: defaultX, y: defaultY };
-    
-    const maxRange = spec?.weapons && spec.weapons.length > 0
-      ? Math.max(...spec.weapons.map(w => w.range))
-      : 100;
-    
-    for (let i = 0; i < stack.count; i++) {
-      aList.push({
-        id: stack.uuid + '_' + i,
-        name: stack.name,
-        icon: stack.icon,
-        hp: stack.health,
-        maxHp: stack.health,
-        cost: stack.cost,
-        weapons: spec?.weapons || [],
-        layers: stack.layers,
-        move_speed: spec?.move_speed || 0,
-        x: pos2d.x - i * 8,
-        y: pos2d.y + (i % 3 - 1) * 10,
-        firingAt: null,
-        maxRange
-      });
-    }
-  });
-  
-  let bList = [];
-  listB.forEach((stack, stackIdx) => {
-    const spec = getUnitById(stack.unitId);
-    const stored = conn?.settings?.positions?.[stack.uuid];
-    const defaultX = initialDistance / 2 + stackIdx * 25;
-    const defaultY = (stackIdx - Math.floor(listB.length / 2)) * 20;
-    const pos2d = stored ? (typeof stored === 'number' ? { x: stored, y: 0 } : stored) : { x: defaultX, y: defaultY };
-    
-    const maxRange = spec?.weapons && spec.weapons.length > 0
-      ? Math.max(...spec.weapons.map(w => w.range))
-      : 100;
-    
-    for (let i = 0; i < stack.count; i++) {
-      bList.push({
-        id: stack.uuid + '_' + i,
-        name: stack.name,
-        icon: stack.icon,
-        hp: stack.health,
-        maxHp: stack.health,
-        cost: stack.cost,
-        weapons: spec?.weapons || [],
-        layers: stack.layers,
-        move_speed: spec?.move_speed || 0,
-        x: pos2d.x + i * 8,
-        y: pos2d.y + (i % 3 - 1) * 10,
-        firingAt: null,
-        maxRange
-      });
-    }
-  });
-  
-  if (aList.length === 0 || bList.length === 0) return null;
-  
-  aList.sort((x, y) => x.x - y.x);
-  bList.sort((x, y) => y.x - x.x);
-  
-  const totalCostA = aList.reduce((sum, u) => sum + u.cost, 0);
-  const totalCostB = bList.reduce((sum, u) => sum + u.cost, 0);
-  
-  const totalMaxHpA = aList.reduce((sum, u) => sum + u.maxHp, 0);
-  const totalMaxHpB = bList.reduce((sum, u) => sum + u.maxHp, 0);
-  
-  let time = 0;
-  let log = [];
-  let ticks = [];
-  
-  const nameA = nodeA.type === 'area' ? nodeA.name : `${listA[0].count}x ${listA[0].name}`;
-  const nameB = nodeB.type === 'area' ? nodeB.name : `${listB[0].count}x ${listB[0].name}`;
-  
-  const initialStartLog = {
-    time: 0,
-    type: 'start',
-    event: lang.value === 'ru'
-      ? `Начало сражения: ${nameA} (Металл: ${totalCostA}, Здоровье: ${totalMaxHpA}) против ${nameB} (Металл: ${totalCostB}, Здоровье: ${totalMaxHpB})`
-      : `Combat Initiated: ${nameA} (Cost: ${totalCostA}, HP: ${totalMaxHpA}) vs ${nameB} (Cost: ${totalCostB}, HP: ${totalMaxHpB})`
-  };
-  log.push(initialStartLog);
-
-  ticks.push({
-    time: 0,
-    aHp: totalMaxHpA,
-    bHp: totalMaxHpB,
-    aUnits: aList.map(u => ({ id: u.id, name: u.name, icon: u.icon, hp: u.hp, maxHp: u.maxHp, x: u.x, y: u.y || 0, firingAt: null, maxRange: u.maxRange })),
-    bUnits: bList.map(u => ({ id: u.id, name: u.name, icon: u.icon, hp: u.hp, maxHp: u.maxHp, x: u.x, y: u.y || 0, firingAt: null, maxRange: u.maxRange })),
-    newLogs: [initialStartLog]
-  });
-  
-  const tick = 0.1;
-  const maxSimTime = simSettings.value.maxTime || 120;
-  
-  let wpnDmgAccA = {};
-  let wpnDmgAccB = {};
-  
-  while (aList.length > 0 && bList.length > 0 && time < maxSimTime) {
-    const logStartIdx = log.length;
-    
-    aList.forEach(u => u.firingAt = null);
-    bList.forEach(u => u.firingAt = null);
-    
-    // 1. Team A actions (fire or move)
-    aList.forEach(attacker => {
-      if (attacker.hp <= 0) return;
-      
-      const weapons = attacker.weapons && attacker.weapons.length > 0 
-        ? attacker.weapons 
-        : [{ name: 'Default Gun', dps: 10, range: 100, target_layers: ['WL_LandHorizontal', 'WL_WaterSurface'] }];
-      
-      let fired = false;
-      
-      weapons.forEach(wpn => {
-        if (wpn.dps <= 0) return;
-        
-        const targets = bList.filter(t => t.hp > 0 && canTargetLayer(wpn.target_layers, t.layers));
-        if (targets.length > 0) {
-          // Sort by 2D distance
-          targets.sort((a2, b2) => {
-            const dA = Math.hypot(attacker.x - a2.x, (attacker.y||0) - (a2.y||0));
-            const dB = Math.hypot(attacker.x - b2.x, (attacker.y||0) - (b2.y||0));
-            return dA - dB;
-          });
-          const target = targets[0];
-          const dist2d = Math.hypot(attacker.x - target.x, (attacker.y||0) - (target.y||0));
-          
-          if (dist2d <= wpn.range) {
-            fired = true;
-            attacker.firingAt = target.id;
-            const dmg = wpn.dps * tick;
-            target.hp -= dmg;
-            
-            const wKey = `${wpn.name}__${target.name}`;
-            if (!wpnDmgAccA[wKey]) {
-              wpnDmgAccA[wKey] = { wpnName: wpn.name, targetName: target.name, damage: 0, attackerName: attacker.name };
-            }
-            wpnDmgAccA[wKey].damage += dmg;
-          }
-        }
-      });
-      
-      if (!fired && attacker.move_speed > 0) {
-        const enemies = bList.filter(e => e.hp > 0);
-        if (enemies.length > 0) {
-          enemies.sort((a2, b2) => {
-            const dA = Math.hypot(attacker.x - a2.x, (attacker.y||0) - (a2.y||0));
-            const dB = Math.hypot(attacker.x - b2.x, (attacker.y||0) - (b2.y||0));
-            return dA - dB;
-          });
-          const closest = enemies[0];
-          const dx = closest.x - attacker.x;
-          const dy = (closest.y||0) - (attacker.y||0);
-          const dist2d = Math.hypot(dx, dy) || 1;
-          // Move in X direction only (Y is static during battle)
-          const dir = Math.sign(dx);
-          attacker.x += dir * attacker.move_speed * tick;
-        }
-      }
-    });
-    
-    // 2. Team B actions (fire or move)
-    bList.forEach(attacker => {
-      if (attacker.hp <= 0) return;
-      
-      const weapons = attacker.weapons && attacker.weapons.length > 0 
-        ? attacker.weapons 
-        : [{ name: 'Default Gun', dps: 10, range: 100, target_layers: ['WL_LandHorizontal', 'WL_WaterSurface'] }];
-      
-      let fired = false;
-      
-      weapons.forEach(wpn => {
-        if (wpn.dps <= 0) return;
-        
-        const targets = aList.filter(t => t.hp > 0 && canTargetLayer(wpn.target_layers, t.layers));
-        if (targets.length > 0) {
-          targets.sort((a2, b2) => {
-            const dA = Math.hypot(attacker.x - a2.x, (attacker.y||0) - (a2.y||0));
-            const dB = Math.hypot(attacker.x - b2.x, (attacker.y||0) - (b2.y||0));
-            return dA - dB;
-          });
-          const target = targets[0];
-          const dist2d = Math.hypot(attacker.x - target.x, (attacker.y||0) - (target.y||0));
-          
-          if (dist2d <= wpn.range) {
-            fired = true;
-            attacker.firingAt = target.id;
-            const dmg = wpn.dps * tick;
-            target.hp -= dmg;
-            
-            const wKey = `${wpn.name}__${target.name}`;
-            if (!wpnDmgAccB[wKey]) {
-              wpnDmgAccB[wKey] = { wpnName: wpn.name, targetName: target.name, damage: 0, attackerName: attacker.name };
-            }
-            wpnDmgAccB[wKey].damage += dmg;
-          }
-        }
-      });
-      
-      if (!fired && attacker.move_speed > 0) {
-        const enemies = aList.filter(e => e.hp > 0);
-        if (enemies.length > 0) {
-          enemies.sort((a2, b2) => {
-            const dA = Math.hypot(attacker.x - a2.x, (attacker.y||0) - (a2.y||0));
-            const dB = Math.hypot(attacker.x - b2.x, (attacker.y||0) - (b2.y||0));
-            return dA - dB;
-          });
-          const closest = enemies[0];
-          const dx = closest.x - attacker.x;
-          const dir = Math.sign(dx);
-          attacker.x += dir * attacker.move_speed * tick;
-        }
-      }
-    });
-    
-    const deadB = bList.filter(t => t.hp <= 0);
-    const deadA = aList.filter(t => t.hp <= 0);
-    
-    const processDeathLogs = (deadList, teamName, isTeamA) => {
-      const counts = {};
-      const icons = {};
-      deadList.forEach(d => {
-        counts[d.name] = (counts[d.name] || 0) + 1;
-        icons[d.name] = d.icon;
-      });
-      for (const [unitName, count] of Object.entries(counts)) {
-        const remainingList = isTeamA ? aList.filter(u => u.name === unitName && u.hp > 0) : bList.filter(u => u.name === unitName && u.hp > 0);
-        const initialStackCount = (isTeamA ? listA : listB).filter(u => u.name === unitName).reduce((s, u) => s + u.count, 0);
-        const remainingCount = remainingList.length;
-        
-        log.push({
-          time: Number(time.toFixed(1)),
-          type: 'death',
-          unitName,
-          icon: icons[unitName],
-          teamName,
-          event: lang.value === 'ru'
-            ? `${count}x ${unitName} [${teamName}] уничтожено! (Осталось: ${remainingCount}/${initialStackCount})`
-            : `${count}x ${unitName} of [${teamName}] destroyed! (Remaining: ${remainingCount}/${initialStackCount})`
-        });
-      }
-    };
-
-    if (deadB.length > 0) processDeathLogs(deadB, nameB, false);
-    if (deadA.length > 0) processDeathLogs(deadA, nameA, true);
-
-    bList = bList.filter(t => t.hp > 0);
-    aList = aList.filter(t => t.hp > 0);
-    
-    time += tick;
-
-    const newLogs = log.slice(logStartIdx);
-    const tickIndex = Math.round(time / tick);
-    if (newLogs.length > 0 || tickIndex % 5 === 0 || aList.length === 0 || bList.length === 0) {
-      ticks.push({
-        time: Number(time.toFixed(1)),
-        aHp: aList.reduce((sum, u) => sum + u.hp, 0),
-        bHp: bList.reduce((sum, u) => sum + u.hp, 0),
-        aUnits: aList.map(u => ({ id: u.id, name: u.name, icon: u.icon, hp: u.hp, maxHp: u.maxHp, x: u.x, y: u.y || 0, firingAt: u.firingAt, maxRange: u.maxRange })),
-        bUnits: bList.map(u => ({ id: u.id, name: u.name, icon: u.icon, hp: u.hp, maxHp: u.maxHp, x: u.x, y: u.y || 0, firingAt: u.firingAt, maxRange: u.maxRange })),
-        newLogs
-      });
-    }
-  } // end while
-
-  let winner = null;
-
-  let remainingCount = 0;
-  let remainingHpPercent = 0;
-  let resultText = '';
-  
-  const currentHpA = aList.reduce((sum, u) => sum + u.hp, 0);
-  const currentHpB = bList.reduce((sum, u) => sum + u.hp, 0);
-  
-  if (aList.length > 0 && bList.length === 0) {
-    winner = 'A';
-    remainingCount = aList.length;
-    remainingHpPercent = Math.round((currentHpA / totalMaxHpA) * 100);
-    resultText = lang.value === 'ru' ? `${nameA} победил!` : `${nameA} Wins!`;
-    log.push({
-      time: Number(time.toFixed(1)),
-      type: 'victory',
-      event: lang.value === 'ru'
-        ? `Сражение завершено. ${nameA} одержал победу! Выжило: ${remainingCount} шт. (${remainingHpPercent}% здоровья).`
-        : `Battle concluded. ${nameA} is victorious! Survivors: ${remainingCount} (${remainingHpPercent}% HP).`
-    });
-  } else if (bList.length > 0 && aList.length === 0) {
-    winner = 'B';
-    remainingCount = bList.length;
-    remainingHpPercent = Math.round((currentHpB / totalMaxHpB) * 100);
-    resultText = lang.value === 'ru' ? `${nameB} победил!` : `${nameB} Wins!`;
-    log.push({
-      time: Number(time.toFixed(1)),
-      type: 'victory',
-      event: lang.value === 'ru'
-        ? `Сражение завершено. ${nameB} одержал победу! Выжило: ${remainingCount} шт. (${remainingHpPercent}% здоровья).`
-        : `Battle concluded. ${nameB} is victorious! Survivors: ${remainingCount} (${remainingHpPercent}% HP).`
-    });
-  } else {
-    winner = 'Draw';
-    resultText = lang.value === 'ru' ? 'Ничья / Взаимное уничтожение' : 'Draw / Mutual Annihilation';
-    log.push({
-      time: Number(time.toFixed(1)),
-      type: 'draw',
-      event: lang.value === 'ru'
-        ? `Сражение завершено вничью. Все юниты с обеих сторон уничтожены.`
-        : `Battle finished in a draw. All units destroyed.`
-    });
-  }
-  
-  const aSurvivingCounts = {};
-  aList.forEach(u => {
-    const cardUuid = u.id.split('_')[0];
-    aSurvivingCounts[cardUuid] = (aSurvivingCounts[cardUuid] || 0) + 1;
-  });
-  
-  const detailedA = listA.map(stack => {
-    return {
-      uuid: stack.uuid,
-      name: stack.name,
-      icon: stack.icon,
-      cost: stack.cost,
-      initialCount: stack.count,
-      survivedCount: aSurvivingCounts[stack.uuid] || 0
-    };
-  });
-  
-  const bSurvivingCounts = {};
-  bList.forEach(u => {
-    const cardUuid = u.id.split('_')[0];
-    bSurvivingCounts[cardUuid] = (bSurvivingCounts[cardUuid] || 0) + 1;
-  });
-  
-  const detailedB = listB.map(stack => {
-    return {
-      uuid: stack.uuid,
-      name: stack.name,
-      icon: stack.icon,
-      cost: stack.cost,
-      initialCount: stack.count,
-      survivedCount: bSurvivingCounts[stack.uuid] || 0
-    };
-  });
-  
-  return {
-    winner,
-    time: Number(time.toFixed(1)),
-    a: {
-      name: nameA,
-      icon: listA[0]?.icon || '/units/pa_units_commanders_base_commander_base_commander.png',
-      count: listA.reduce((sum, u) => sum + u.count, 0),
-      cost: totalCostA,
-      hpLeft: Math.round(currentHpA),
-      maxHp: totalMaxHpA,
-      unitsLeft: aList.length,
-      hpPercent: Math.round((currentHpA / totalMaxHpA) * 100),
-      detailedUnits: detailedA
-    },
-    b: {
-      name: nameB,
-      icon: listB[0]?.icon || '/units/pa_units_commanders_base_commander_base_commander.png',
-      count: listB.reduce((sum, u) => sum + u.count, 0),
-      cost: totalCostB,
-      hpLeft: Math.round(currentHpB),
-      maxHp: totalMaxHpB,
-      unitsLeft: bList.length,
-      hpPercent: Math.round((currentHpB / totalMaxHpB) * 100),
-      detailedUnits: detailedB
-    },
-    remainingCount,
-    remainingHpPercent,
-    resultText,
-    log,
-    ticks,
-    totalMaxHpA,
-    totalMaxHpB
-  };
-};
+function runBattleSimulation(nodeA, nodeB, conn = null) {
+  return extRunBattleSimulation(nodeA, nodeB, conn, simSettings.value, lang.value, getUnitById, getCombatants);
+}
 
 // Computed property that maps each connection to its battle results and SVG path coordinates
 const activeConnections = computed(() => {
@@ -2150,7 +2974,13 @@ const vFocus = {
       <div class="sidebar-header">
         <div class="logo-text">
           <Sword class="logo-icon" style="color: var(--color-cyan);" />
-          PA: TITANS
+          <a 
+            href="https://rimuwu.github.io/PA-Dashboard/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            class="logo-link"
+          >PA: DASHBOARD <ExternalLink :size="10" style="margin-left:2px; vertical-align:middle; opacity:0.7;" /></a>
+          <span class="logo-tag">AS1</span>
         </div>
         <div class="logo-sub">{{ t('logoSub') }}</div>
         
@@ -2165,43 +2995,7 @@ const vFocus = {
           />
         </div>
         
-        <!-- Language Switcher -->
-        <div style="display: flex; gap: 6px; margin-top: 12px; justify-content: flex-end;">
-          <button 
-            @click="lang = 'ru'"
-            :style="{
-              padding: '3px 8px',
-              fontSize: '0.65rem',
-              borderRadius: '3px',
-              border: '1px solid',
-              borderColor: lang === 'ru' ? '#fff' : 'var(--border-dim)',
-              background: lang === 'ru' ? 'rgba(255,255,255,0.08)' : 'transparent',
-              color: lang === 'ru' ? '#fff' : 'var(--text-dim)',
-              cursor: 'pointer',
-              fontWeight: lang === 'ru' ? 'bold' : 'normal',
-              fontFamily: 'var(--font-title)'
-            }"
-          >
-            RU
-          </button>
-          <button 
-            @click="lang = 'en'"
-            :style="{
-              padding: '3px 8px',
-              fontSize: '0.65rem',
-              borderRadius: '3px',
-              border: '1px solid',
-              borderColor: lang === 'en' ? '#fff' : 'var(--border-dim)',
-              background: lang === 'en' ? 'rgba(255,255,255,0.08)' : 'transparent',
-              color: lang === 'en' ? '#fff' : 'var(--text-dim)',
-              cursor: 'pointer',
-              fontWeight: lang === 'en' ? 'bold' : 'normal',
-              fontFamily: 'var(--font-title)'
-            }"
-          >
-            EN
-          </button>
-        </div>
+
       </div>
       
       <!-- Category Grid -->
@@ -2274,6 +3068,68 @@ const vFocus = {
           >{{ tr }}</button>
         </div>
       </div>
+
+      <!-- Factory Filter -->
+      <div class="sub-filters-container filter-group-block" v-show="!filtersCollapsed">
+        <div class="filter-group-label" style="margin-bottom: 6px;">
+          <Factory :size="11" />
+          {{ t('factoryFilter') }}
+        </div>
+        <select v-model="selectedFactoryFilter" class="sidebar-select" style="width: 100%;">
+          <option value="all">{{ t('factoryFilter_all') }}</option>
+          <option value="commander">{{ lang === 'ru' ? 'Командиры (Все)' : 'Commanders (All)' }}</option>
+          <option v-for="fact in sidebarFactories" :key="fact.id" :value="fact.id">
+            {{ t('unit_name_' + fact.id) }}
+          </option>
+        </select>
+      </div>
+
+      <!-- Sorting Selector -->
+      <div class="sub-filters-container filter-group-block" v-show="!filtersCollapsed">
+        <div class="filter-group-label" style="margin-bottom: 6px;">
+          <Sword :size="11" />
+          {{ t('sortBy') }}
+        </div>
+        <div style="display: flex; gap: 8px; width: 100%;">
+          <select v-model="sidebarSortBy" class="sidebar-select" style="flex: 1;">
+            <option value="default">{{ t('sort_default') }}</option>
+            <option value="name">{{ t('sort_name') }}</option>
+            <option value="cost">{{ t('sort_cost') }}</option>
+            <option value="health">{{ t('sort_health') }}</option>
+            <option value="dps">{{ t('sort_dps') }}</option>
+            <option value="range">{{ t('sort_range') }}</option>
+            <option value="speed">{{ t('sort_speed') }}</option>
+            <option value="vision">{{ t('sort_vision') }}</option>
+          </select>
+          <button 
+            @click="sidebarSortOrder = sidebarSortOrder === 'asc' ? 'desc' : 'asc'" 
+            class="btn" 
+            style="padding: 4px 8px; font-size: 0.72rem; display: flex; align-items: center; border: 1px solid var(--border-dim); background: rgba(255,255,255,0.02);"
+            :title="sidebarSortOrder === 'asc' ? (lang === 'ru' ? 'По возрастанию' : 'Ascending') : (lang === 'ru' ? 'По убыванию' : 'Descending')"
+          >
+            <component :is="sidebarSortOrder === 'asc' ? ArrowUp : ArrowDown" :size="12" />
+          </button>
+        </div>
+      </div>
+
+      <!-- Tags Filter -->
+      <div class="sub-filters-container filter-group-block" v-show="!filtersCollapsed">
+        <div class="filter-group-label">
+          <Tag :size="11" style="transform: rotate(90deg);" />
+          {{ t('tagsFilter') }}
+          <span v-if="activeTagFilters.length > 0" class="filter-count-badge">{{ activeTagFilters.length }}</span>
+        </div>
+        <div class="tags-filter-container">
+          <span 
+            v-for="tag in ['Tank', 'Bot', 'Air', 'Naval', 'Orbital', 'Structure', 'Defense', 'Advanced', 'Basic', 'Fabber', 'Combat', 'Artillery', 'Tactical', 'Fighter', 'Bomber', 'Sub', 'Heavy', 'Mobile']" 
+            :key="tag"
+            @click="toggleTagFilter(tag)"
+            :class="['tag-filter-chip', { active: activeTagFilters.includes(tag) }]"
+          >
+            {{ t('tag_' + tag) }}
+          </span>
+        </div>
+      </div>
       
       <!-- Unit Grid List -->
       <div class="unit-list-container">
@@ -2298,6 +3154,37 @@ const vFocus = {
             <img :src="unit.icon" :alt="unit.name" class="sidebar-unit-img" />
             <div class="sidebar-unit-name">{{ t('unit_name_' + unit.id) }}</div>
             <div class="sidebar-unit-cost">{{ unit.cost }} M</div>
+
+            <!-- Custom Tooltip on Hover -->
+            <div class="tooltip-custom">
+              <div class="tooltip-title">{{ t('unit_name_' + unit.id) }}</div>
+              <div class="tooltip-desc">{{ lang === 'ru' ? t('unit_desc_' + unit.id) || unit.description : unit.description }}</div>
+              <div style="margin-top: 8px; font-size: 0.68rem; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 6px; display: flex; flex-direction: column; gap: 3px;">
+                <div style="display:flex; justify-content:space-between; width: 100%;">
+                  <span style="color:var(--text-dim);">HP:</span>
+                  <span>{{ unit.health?.toLocaleString() }}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; width: 100%;">
+                  <span style="color:var(--text-dim);">{{ lang === 'ru' ? 'Металл:' : 'Metal:' }}</span>
+                  <span style="color: var(--color-orange); font-weight: bold;">{{ unit.cost?.toLocaleString() }} M</span>
+                </div>
+                <!-- Build energy for structures in tooltip -->
+                <div v-if="unit.unit_types?.includes('UNITTYPE_Structure')" style="display:flex; justify-content:space-between; width: 100%;">
+                  <span style="color:var(--text-dim);">{{ lang === 'ru' ? 'Энергия (постр.):' : 'Build Energy:' }}</span>
+                  <span style="color:var(--color-cyan); font-weight: bold;">{{ (unit.cost * 25).toLocaleString() }} E</span>
+                </div>
+                <!-- Energy production in tooltip -->
+                <div v-if="getUnitEnergyStats(unit)?.energyProd > 0" style="display:flex; justify-content:space-between; width: 100%;">
+                  <span style="color:var(--text-dim);">{{ lang === 'ru' ? 'Энергия (выработка):' : 'Energy Prod:' }}</span>
+                  <span style="color:#4ade80; font-weight: bold;">+{{ getUnitEnergyStats(unit).energyProd.toLocaleString() }} E/s</span>
+                </div>
+                <!-- Energy consumption in tooltip -->
+                <div v-if="getUnitEnergyStats(unit)?.energyCons > 0" style="display:flex; justify-content:space-between; width: 100%;">
+                  <span style="color:var(--text-dim);">{{ lang === 'ru' ? 'Энергия (потребл.):' : 'Energy Cons:' }}</span>
+                  <span style="color:#f87171; font-weight: bold;">-{{ getUnitEnergyStats(unit).energyCons.toLocaleString() }} E/s</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div v-if="filteredUnits.length === 0" style="text-align: center; color: var(--text-dim); margin-top: 40px; font-size: 0.85rem;">
@@ -2328,6 +3215,10 @@ const vFocus = {
           <button class="btn btn-secondary" @click="showSimSettingsModal = true" :title="lang === 'ru' ? 'Настройки симуляции' : 'Sim Settings'">
             <Settings :size="13" />
           </button>
+          <button class="btn btn-secondary" @click="undoLastAction" :disabled="undoStack.length === 0" :title="lang === 'ru' ? 'Отменить действие (Ctrl+Z)' : 'Undo Action (Ctrl+Z)'">
+            <Undo2 :size="13" />
+            <span class="btn-label">{{ lang === 'ru' ? 'Назад' : 'Undo' }}</span>
+          </button>
           <button class="btn btn-danger" @click="clearBoard" :title="t('clear')">
             <RefreshCw :size="13" />
           </button>
@@ -2356,7 +3247,8 @@ const vFocus = {
           {{ Math.round(canvasZoom * 100) }}%
         </span>
         <button class="qty-btn" @click="zoomIn" style="padding: 2px 6px;"><ZoomIn :size="16" /></button>
-        <button class="qty-btn" @click="resetZoom" style="padding: 2px 6px; color: var(--text-secondary); margin-left: 4px;"><RefreshCw :size="14" /></button>
+        <button class="qty-btn" @click="resetZoom" style="padding: 2px 6px; color: var(--text-secondary); margin-left: 4px;" :title="lang === 'ru' ? 'Сбросить зум' : 'Reset Zoom'"><RefreshCw :size="14" /></button>
+        <button class="qty-btn" @click="goToCenter" :title="t('focusCenter')" style="padding: 2px 6px; color: var(--color-cyan); margin-left: 4px;"><Crosshair :size="14" /></button>
       </div>
 
       <!-- Canvas Container -->
@@ -2551,7 +3443,7 @@ const vFocus = {
           
           <!-- Unit Cards -->
           <div 
-            v-for="placed in placedUnits" 
+            v-for="placed in placedUnits.filter(u => !u.timelineColId)" 
             :key="placed.uuid"
             :class="[
               'unit-card', 
@@ -2570,12 +3462,17 @@ const vFocus = {
               top: `${placed.y}px`,
               zIndex: placed.zIndex || 10
             }"
+            @mousedown="onCardMousedown(placed, $event)"
             @mouseup="completeConnection(placed, $event)"
             @contextmenu.prevent.stop="onCardContextMenu(placed, $event)"
           >
             
-            <div class="unit-card-header" @mousedown="startDragCard(placed, $event)">
-              <img :src="placed.skinIcon || getUnitById(placed.unitId)?.icon" class="unit-card-icon" />
+            <div class="unit-card-header">
+              <img 
+                :src="placed.skinIcon || getUnitById(placed.unitId)?.icon" 
+                class="unit-card-icon" 
+                :title="lang === 'ru' ? 'Зажмите левую кнопку мыши для переноса' : 'Hold left click to move'"
+              />
               <div class="unit-card-title">{{ placed.skinName || t('unit_name_' + placed.unitId) }}</div>
               
               <!-- Skin Switcher Button for Commanders -->
@@ -2600,6 +3497,15 @@ const vFocus = {
                 <AlertTriangle :size="14" />
               </div>
               
+              <input
+                v-if="selectedCardUuids.length > 0"
+                type="checkbox"
+                :checked="selectedCardUuids.includes(placed.uuid)"
+                @change.stop="toggleCardSelection(placed.uuid)"
+                class="card-select-checkbox"
+                style="margin-right: 6px; cursor: pointer; accent-color: var(--color-cyan);"
+                title="Select card"
+              />
               <button class="close-btn" @click.stop="removePlacedUnit(placed.uuid)">&times;</button>
             </div>
             
@@ -2626,6 +3532,22 @@ const vFocus = {
                 <span class="tier-badge" :class="'tier-' + (getUnitById(placed.unitId)?.tier || 'T1').toLowerCase()">
                   {{ getUnitById(placed.unitId)?.tier || 'T1' }}
                 </span>
+              </div>
+              
+              <!-- Build Energy (for structures) -->
+              <div class="stat-row" v-if="getUnitById(placed.unitId)?.unit_types?.includes('UNITTYPE_Structure')">
+                <span class="stat-label">{{ lang === 'ru' ? 'Энергия (постр.)' : 'Build Energy' }}:</span>
+                <span class="stat-value" style="color: var(--color-cyan);">{{ (getUnitById(placed.unitId)?.cost * 25 * placed.count).toLocaleString() }} E</span>
+              </div>
+              <!-- Energy Production -->
+              <div class="stat-row" v-if="getUnitEnergyStats(getUnitById(placed.unitId))?.energyProd > 0">
+                <span class="stat-label">{{ lang === 'ru' ? 'Выработка эн.' : 'Energy Prod.' }}:</span>
+                <span class="stat-value" style="color: #4ade80;">+{{ (getUnitEnergyStats(getUnitById(placed.unitId)).energyProd * placed.count).toLocaleString() }} E/s</span>
+              </div>
+              <!-- Energy Consumption -->
+              <div class="stat-row" v-if="getUnitEnergyStats(getUnitById(placed.unitId))?.energyCons > 0">
+                <span class="stat-label">{{ lang === 'ru' ? 'Потребление эн.' : 'Energy Cons.' }}:</span>
+                <span class="stat-value" style="color: #f87171;">-{{ (getUnitEnergyStats(getUnitById(placed.unitId)).energyCons * placed.count).toLocaleString() }} E/s</span>
               </div>
 
               <!-- Target type badges -->
@@ -2708,6 +3630,295 @@ const vFocus = {
             ></div>
           </div>
 
+          <!-- Timeline Panels -->
+          <div 
+            v-for="panel in timelinePanels" 
+            :key="panel.uuid"
+            class="timeline-panel"
+            :style="{
+              left: `${panel.x}px`,
+              top: `${panel.y}px`,
+              zIndex: 8
+            }"
+            @mousedown="onTimelineMousedown(panel, $event)"
+          >
+            <div class="timeline-panel-header">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <Clock :size="14" style="color: var(--color-cyan);" />
+                <span style="font-family: var(--font-title); font-size: 0.72rem; font-weight: bold; text-transform: uppercase;">
+                  {{ lang === 'ru' ? 'Временная шкала построек' : 'Build Order Timeline' }}
+                </span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <button 
+                  class="qty-btn" 
+                  @click="addColumnToTimeline(panel)" 
+                  :title="lang === 'ru' ? 'Добавить минуту' : 'Add Minute'"
+                >
+                  <Plus :size="12" />
+                </button>
+                <button 
+                  class="qty-btn" 
+                  style="color: var(--color-red);" 
+                  @click="removeTimelinePanel(panel.uuid)"
+                  :title="lang === 'ru' ? 'Удалить панель' : 'Delete Panel'"
+                >
+                  <X :size="12" />
+                </button>
+              </div>
+            </div>
+
+            <div class="timeline-columns-wrap" @mousedown.stop>
+              <div 
+                v-for="col in panel.columns" 
+                :key="col.id"
+                class="timeline-col"
+                :style="{
+                  width: `${col.width || 250}px`,
+                  height: `${col.height || 420}px`
+                }"
+                @dragover.prevent
+              >
+                <div class="timeline-col-header">
+                  <span style="font-size: 0.65rem; color: var(--text-dim);">
+                    {{ lang === 'ru' ? 'Мин:' : 'Min:' }}
+                  </span>
+                  <input 
+                    type="number" 
+                    v-model.number="col.minute" 
+                    @change="onTimelineMinuteChange(panel, col)"
+                    min="0"
+                    max="120"
+                    class="timeline-minute-input"
+                  />
+                  <button 
+                    class="timeline-col-delete-btn" 
+                    @click="removeColumnFromTimeline(panel, col.id)"
+                    :title="lang === 'ru' ? 'Удалить столбец' : 'Delete Column'"
+                  >
+                    <X :size="10" />
+                  </button>
+                </div>
+
+                <!-- Unit List in Column (Full Size Cards) -->
+                <div class="timeline-col-body">
+                  <div v-if="placedUnits.filter(u => u.timelineColId === col.id).length === 0" class="timeline-empty-drop-zone">
+                    {{ lang === 'ru' ? 'Перетащите сюда' : 'Drag unit here' }}
+                  </div>
+                  
+                  <div 
+                    v-for="placed in placedUnits.filter(u => u.timelineColId === col.id)" 
+                    :key="placed.uuid"
+                    :class="[
+                      'unit-card', 
+                      { 
+                        'selected': selectedCardUuids.includes(placed.uuid),
+                        'overlap-active': overlappingCardUuids.includes(placed.uuid),
+                        'is-grouped': groupedCardUuids.includes(placed.uuid),
+                        'is-connected': connectedCardUuids.includes(placed.uuid),
+                        'combat-winner': cardSurvivalStatus[placed.uuid] === 'winner',
+                        'combat-loser': cardSurvivalStatus[placed.uuid] === 'loser',
+                        'combat-draw': cardSurvivalStatus[placed.uuid] === 'draw',
+                        'active-drag': activeDragCard?.uuid === placed.uuid
+                      }
+                    ]"
+                    :style="{
+                      left: `${placed.x}px`,
+                      top: `${placed.y}px`,
+                      zIndex: placed.zIndex || 10
+                    }"
+                    @mousedown="onCardMousedown(placed, $event)"
+                    @mouseup="completeConnection(placed, $event)"
+                    @contextmenu.prevent.stop="onCardContextMenu(placed, $event)"
+                  >
+                    
+                    <div class="unit-card-header">
+                      <img 
+                        :src="placed.skinIcon || getUnitById(placed.unitId)?.icon" 
+                        class="unit-card-icon" 
+                        :title="lang === 'ru' ? 'Зажмите левую кнопку мыши для переноса' : 'Hold left click to move'"
+                      />
+                      <div class="unit-card-title">{{ placed.skinName || t('unit_name_' + placed.unitId) }}</div>
+                      
+                      <!-- Skin Switcher Button for Commanders -->
+                      <button 
+                        v-if="getUnitById(placed.unitId)?.category === 'commander' || placed.unitId.includes('commander')"
+                        class="qty-btn"
+                        style="padding: 2px 5px; margin-right: 4px; color: var(--color-cyan);"
+                        @click.stop="openSkinModal(placed)"
+                        :title="lang === 'ru' ? 'Сменить скин Командира' : 'Change Commander Skin'"
+                      >
+                        <Palette :size="12" />
+                      </button>
+
+                      <!-- Overlapping warning icon -->
+                      <div 
+                        v-if="overlappingCardUuids.includes(placed.uuid)" 
+                        class="overlap-warning"
+                        :title="t('overlapping')"
+                      >
+                        <AlertTriangle :size="14" />
+                      </div>
+                      
+                      <input
+                        v-if="selectedCardUuids.length > 0"
+                        type="checkbox"
+                        :checked="selectedCardUuids.includes(placed.uuid)"
+                        @change.stop="toggleCardSelection(placed.uuid)"
+                        class="card-select-checkbox"
+                        style="margin-right: 6px; cursor: pointer; accent-color: var(--color-cyan);"
+                        title="Select card"
+                      />
+                      <button class="close-btn" @click.stop="removePlacedUnit(placed.uuid)">&times;</button>
+                    </div>
+                    
+                    <div class="unit-card-body">
+                      <div class="stat-row">
+                        <span class="stat-label">{{ t('hp') }}:</span>
+                        <span class="stat-value">{{ getUnitById(placed.unitId)?.health?.toLocaleString() }}</span>
+                      </div>
+                      <div class="stat-row">
+                        <span class="stat-label">{{ t('cost') }}:</span>
+                        <span class="stat-value" style="color: var(--color-orange);">{{ (getUnitById(placed.unitId)?.cost * placed.count).toLocaleString() }} M</span>
+                      </div>
+                      <div class="stat-row">
+                        <span class="stat-label">{{ t('dps') }}:</span>
+                        <span class="stat-value">{{ Math.round(getUnitById(placed.unitId)?.dps * placed.count) }}</span>
+                      </div>
+                      <div class="stat-row">
+                        <span class="stat-label">{{ t('range') }}:</span>
+                        <span class="stat-value">{{ getUnitById(placed.unitId)?.range }}</span>
+                      </div>
+                      <!-- Tier badge -->
+                      <div class="stat-row">
+                        <span class="stat-label">{{ lang === 'ru' ? 'Уровень' : 'Tier' }}:</span>
+                        <span class="tier-badge" :class="'tier-' + (getUnitById(placed.unitId)?.tier || 'T1').toLowerCase()">
+                          {{ getUnitById(placed.unitId)?.tier || 'T1' }}
+                        </span>
+                      </div>
+                      
+                      <!-- Build Energy (for structures) -->
+                      <div class="stat-row" v-if="getUnitById(placed.unitId)?.unit_types?.includes('UNITTYPE_Structure')">
+                        <span class="stat-label">{{ lang === 'ru' ? 'Энергия (постр.)' : 'Build Energy' }}:</span>
+                        <span class="stat-value" style="color: var(--color-cyan);">{{ (getUnitById(placed.unitId)?.cost * 25 * placed.count).toLocaleString() }} E</span>
+                      </div>
+                      <!-- Energy Production -->
+                      <div class="stat-row" v-if="getUnitEnergyStats(getUnitById(placed.unitId))?.energyProd > 0">
+                        <span class="stat-label">{{ lang === 'ru' ? 'Выработка эн.' : 'Energy Prod.' }}:</span>
+                        <span class="stat-value" style="color: #4ade80;">+{{ (getUnitEnergyStats(getUnitById(placed.unitId)).energyProd * placed.count).toLocaleString() }} E/s</span>
+                      </div>
+                      <!-- Energy Consumption -->
+                      <div class="stat-row" v-if="getUnitEnergyStats(getUnitById(placed.unitId))?.energyCons > 0">
+                        <span class="stat-label">{{ lang === 'ru' ? 'Потребление эн.' : 'Energy Cons.' }}:</span>
+                        <span class="stat-value" style="color: #f87171;">-{{ (getUnitEnergyStats(getUnitById(placed.unitId)).energyCons * placed.count).toLocaleString() }} E/s</span>
+                      </div>
+
+                      <!-- Target type badges -->
+                      <div class="stat-row-tags" v-if="getUnitById(placed.unitId)?.target_labels?.length">
+                        <span class="stat-label">{{ lang === 'ru' ? 'Цели' : 'Targets' }}:</span>
+                        <div class="tags-wrap">
+                          <span 
+                            v-for="lbl in getUnitById(placed.unitId).target_labels" 
+                            :key="lbl"
+                            class="target-badge"
+                            :class="'target-' + normalizeLayer(lbl)"
+                          >{{ formatTargetLabel(lbl) }}</span>
+                        </div>
+                      </div>
+                      <!-- Attack speed (shots/sec) — from first weapon -->
+                      <div class="stat-row" v-if="getUnitById(placed.unitId)?.weapons?.length">
+                        <span class="stat-label">{{ lang === 'ru' ? 'Ск. атаки' : 'Atk/s' }}:</span>
+                        <span class="stat-value">{{ getUnitById(placed.unitId).weapons.map(w => w.rate_of_fire.toFixed(2)).join(' / ') }}</span>
+                      </div>
+                      <!-- Repair rate for builders -->
+                      <div class="stat-row" v-if="getUnitById(placed.unitId)?.is_builder && getUnitById(placed.unitId)?.build_metal_rate">
+                        <span class="stat-label">{{ lang === 'ru' ? 'Ремонт' : 'Repair' }}:</span>
+                        <span class="stat-value" style="color: #34d399;">{{ getUnitById(placed.unitId).build_metal_rate }} m/s</span>
+                      </div>
+                      
+                      <!-- Quantity Controller -->
+                      <div class="qty-controller">
+                        <button class="qty-btn" @click="adjustCount(placed, -1)" @mousedown.stop>&minus;</button>
+                        <input 
+                          type="number" 
+                          min="1"
+                          max="10000"
+                          v-model.number="placed.count" 
+                          @input="updateCount(placed, $event)"
+                          @mousedown.stop
+                          class="qty-input"
+                        />
+                        <button class="qty-btn" @click="adjustCount(placed, 1)" @mousedown.stop>&plus;</button>
+                      </div>
+                      
+                      <!-- Actions -->
+                      <div class="card-actions">
+                        <button 
+                          v-if="getUnitById(placed.unitId)?.buildable_unit_ids?.length > 0"
+                          class="card-btn card-btn-factory"
+                          @click.stop="placed.showFactoryMenu = !placed.showFactoryMenu"
+                          @mousedown.stop
+                        >
+                          <Factory :size="12" />
+                          {{ t('spawnBuildable') }}
+                        </button>
+                      </div>
+                      
+                      <!-- Factory Spawn Queue Popover -->
+                      <div v-if="placed.showFactoryMenu" class="factory-popup" @mousedown.stop @wheel.stop>
+                        <div class="factory-popup-header">Factory Queue</div>
+                        <div class="factory-grid">
+                          <div 
+                            v-for="buildId in getUnitById(placed.unitId)?.buildable_unit_ids"
+                            :key="buildId"
+                            class="factory-item"
+                            @click="spawnFromFactory(placed, buildId)"
+                            :title="getUnitById(buildId)?.name"
+                          >
+                            <img :src="getUnitById(buildId)?.icon" class="factory-item-img" />
+                          </div>
+                        </div>
+                      </div>
+                      
+                    </div>
+                    
+                    <!-- Connection Ports -->
+                    <div 
+                      class="connection-node node-left"
+                      @mousedown="startConnection(placed, 'left', $event)"
+                    ></div>
+                    <div 
+                      class="connection-node node-right"
+                      @mousedown="startConnection(placed, 'right', $event)"
+                    ></div>
+                  </div>
+                </div>
+
+                <!-- Column Summary (Metal and Energy Cost) -->
+                <div class="timeline-col-summary" v-if="placedUnits.filter(u => u.timelineColId === col.id).length > 0">
+                  <div style="display:flex; justify-content:space-between; width:100%;">
+                    <span>{{ lang === 'ru' ? 'Металл:' : 'Metal:' }}</span>
+                    <span style="color:var(--color-orange); font-weight:bold;">
+                      {{ placedUnits.filter(u => u.timelineColId === col.id).reduce((sum, item) => sum + (getUnitById(item.unitId)?.cost || 0) * item.count, 0).toLocaleString() }}
+                    </span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; width:100%;">
+                    <span>{{ lang === 'ru' ? 'Энергия:' : 'Energy:' }}</span>
+                    <span style="color:var(--color-cyan); font-weight:bold;">
+                      {{ placedUnits.filter(u => u.timelineColId === col.id).reduce((sum, item) => sum + ((getUnitById(item.unitId)?.cost || 0) * 25) * item.count, 0).toLocaleString() }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Corner Resize Handle -->
+                <div 
+                  class="timeline-col-resize-handle"
+                  @mousedown.stop.prevent="startResizeColumn(panel, col, $event)"
+                ></div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
       
@@ -2732,6 +3943,10 @@ const vFocus = {
         <div class="context-menu-item" @click="addGroupArea(contextMenu.canvasX, contextMenu.canvasY); closeContextMenu()">
           <PlusCircle :size="14" />
           {{ t('createArea') }}
+        </div>
+        <div class="context-menu-item" style="color: var(--color-cyan);" @click="createTimelinePanel(contextMenu.canvasX, contextMenu.canvasY); closeContextMenu()">
+          <Clock :size="14" />
+          {{ lang === 'ru' ? 'Создать временную панель' : 'Create Timeline Panel' }}
         </div>
         <div class="context-menu-divider"></div>
         <div class="context-menu-item" @click="goToCenter(); closeContextMenu()">
@@ -2760,6 +3975,11 @@ const vFocus = {
           {{ lang === 'ru' ? 'Сменить скин Командира' : 'Switch Commander Skin' }}
         </div>
         <div class="context-menu-divider"></div>
+        <div class="context-menu-item" style="color: var(--color-cyan);" @click="openCounterFinderModal(contextMenu.uuid); closeContextMenu()">
+          <Shield :size="14" />
+          {{ t('counterMatchmaker') }}
+        </div>
+        <div class="context-menu-divider"></div>
         <div class="context-menu-item" @click="duplicateCard(contextMenu.uuid); closeContextMenu()">
           <Copy :size="14" />
           {{ t('duplicateCard') }}
@@ -2786,6 +4006,15 @@ const vFocus = {
 
       <!-- Area Context Options -->
       <template v-if="contextMenu.type === 'area'">
+        <div class="context-menu-item" style="color: var(--color-cyan);" @click="openCounterFinderModal(contextMenu.uuid); closeContextMenu()">
+          <Shield :size="14" />
+          {{ t('counterMatchmaker') }}
+        </div>
+        <div class="context-menu-item" style="color: var(--color-cyan);" @click="compareAreaUnits(contextMenu.uuid); closeContextMenu()">
+          <BarChart2 :size="14" />
+          {{ t('compareSpecs') }}
+        </div>
+        <div class="context-menu-divider"></div>
         <div class="context-menu-item" @click="renameGroupArea(groupAreas.find(a => a.uuid === contextMenu.uuid)); closeContextMenu()">
           <Edit2 :size="14" />
           {{ t('renameArea') }}
@@ -2835,6 +4064,10 @@ const vFocus = {
         <div class="context-menu-item" @click="groupSelectedIntoArea(); closeContextMenu()">
           <PlusCircle :size="14" />
           {{ t('groupSelected') }}
+        </div>
+        <div class="context-menu-item" style="color: var(--color-cyan);" @click="compareSelectedUnits(); closeContextMenu()">
+          <BarChart2 :size="14" />
+          {{ t('compareSpecs') }}
         </div>
         <div class="context-menu-divider"></div>
         <div class="context-menu-item danger" @click="deleteSelectedCards(); closeContextMenu()">
@@ -2915,236 +4148,6 @@ const vFocus = {
               <span class="log-time">[{{ entry.time.toFixed(1) }}s]</span>
               <span v-if="entry.type === 'death'" style="display:inline-flex; align-items:center; gap:5px;">
                 <Flame :size="12" style="color: var(--color-orange);" />
-                <img :src="entry.icon" style="width:14px;height:14px;object-fit:contain;" />
-                <strong style="color:#fff; font-size:0.68rem;">{{ entry.unitName }}</strong>
-                <span class="log-msg">{{ entry.event }}</span>
-              </span>
-              <span v-else-if="entry.type === 'victory'" style="display:inline-flex; align-items:center; gap:5px;">
-                <Trophy :size="12" style="color: var(--color-green);" />
-                <span class="log-msg" style="color: var(--color-green); font-weight: bold;">{{ entry.event }}</span>
-              </span>
-              <span v-else-if="entry.type === 'draw'" style="display:inline-flex; align-items:center; gap:5px;">
-                <Skull :size="12" style="color: var(--color-orange);" />
-                <span class="log-msg" style="color: var(--color-orange); font-weight: bold;">{{ entry.event }}</span>
-              </span>
-              <span v-else class="log-msg">{{ entry.event }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Animated Battle Simulation Modal -->
-    <div v-if="animSim" class="modal-overlay anim-sim-overlay" @click="stopAnimatedSim">
-      <div class="modal-content anim-sim-modal" @click.stop>
-
-        <!-- Header -->
-        <div class="modal-header" style="border-bottom: 1px solid rgba(255,255,255,0.06);">
-          <h3 class="modal-title" style="display:flex; align-items:center; gap:8px;">
-            <Sword :size="16" style="color: var(--color-cyan);" />
-            {{ lang === 'ru' ? 'Симуляция боя' : 'Battle Simulation' }}
-            <span v-if="animSim.isPlaying" class="anim-live-badge">LIVE</span>
-            <span v-else-if="animSim.done" class="anim-done-badge">{{ lang === 'ru' ? 'ЗАВЕРШЕНО' : 'DONE' }}</span>
-          </h3>
-          <div style="display:flex; gap:8px; align-items:center;">
-            <span style="font-family: var(--font-title); font-size: 0.7rem; color: var(--text-dim);">
-              {{ animSim.sim.ticks.length > 0 ? animSim.sim.ticks[Math.min(animSim.currentTickIndex, animSim.sim.ticks.length-1)].time.toFixed(1) : '0.0' }}s / {{ animSim.sim.time }}s
-            </span>
-            <button class="close-btn" @click="stopAnimatedSim"><X :size="18" /></button>
-          </div>
-        </div>
-
-        <!-- HP Battle Bars -->
-        <div style="padding: 20px 24px 12px; display:flex; flex-direction:column; gap:10px;">
-          <!-- Team A bar -->
-          <div style="display:flex; align-items:center; gap:10px;">
-            <img :src="animSim.sim.a.icon" style="width:28px;height:28px;object-fit:contain;border-radius:3px;flex-shrink:0;" />
-            <div style="flex:1;">
-              <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                <span style="font-family:var(--font-title); font-size:0.7rem; font-weight:bold; color:#fff; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ animSim.sim.a.name }}</span>
-                <span style="font-family:var(--font-title); font-size:0.65rem; color:var(--color-green);">{{ Math.round(animSim.aHpCur).toLocaleString() }} / {{ Math.round(animSim.sim.totalMaxHpA).toLocaleString() }} HP</span>
-              </div>
-              <div class="anim-hp-track">
-                <div class="anim-hp-bar anim-hp-bar-a" :style="{ width: (animSim.sim.totalMaxHpA > 0 ? (animSim.aHpCur / animSim.sim.totalMaxHpA * 100) : 0) + '%' }"></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- VS divider -->
-          <div style="display:flex; align-items:center; gap:8px; padding: 2px 0;">
-            <div style="flex:1; height:1px; background:rgba(255,255,255,0.06);"></div>
-            <span style="font-family:var(--font-title); font-size:0.65rem; color:var(--text-dim); letter-spacing:0.1em;">VS</span>
-            <div style="flex:1; height:1px; background:rgba(255,255,255,0.06);"></div>
-          </div>
-
-          <!-- Team B bar -->
-          <div style="display:flex; align-items:center; gap:10px;">
-            <img :src="animSim.sim.b.icon" style="width:28px;height:28px;object-fit:contain;border-radius:3px;flex-shrink:0;" />
-            <div style="flex:1;">
-              <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                <span style="font-family:var(--font-title); font-size:0.7rem; font-weight:bold; color:#fff; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ animSim.sim.b.name }}</span>
-                <span style="font-family:var(--font-title); font-size:0.65rem; color:var(--color-red);">{{ Math.round(animSim.bHpCur).toLocaleString() }} / {{ Math.round(animSim.sim.totalMaxHpB).toLocaleString() }} HP</span>
-              </div>
-              <div class="anim-hp-track">
-                <div class="anim-hp-bar anim-hp-bar-b" :style="{ width: (animSim.sim.totalMaxHpB > 0 ? (animSim.bHpCur / animSim.sim.totalMaxHpB * 100) : 0) + '%' }"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Visual Battlefield Track (2D) -->
-        <div style="padding: 0 24px; margin-top: 10px; margin-bottom: 12px;" ref="bfTrackWrap">
-          <div class="battlefield-track-2d" v-if="animCurrentTick" ref="bfTrack">
-            <div class="bf2d-grid"></div>
-
-            <!-- SVG layer: fire lines + range ellipses -->
-            <svg class="bf2d-svg" :viewBox="'0 0 ' + trackWidth + ' 220'" :key="'svg-' + animSim.currentTickIndex">
-              <!-- Range ellipses -->
-              <template v-if="isShowRangesEnabled">
-                <ellipse
-                  v-for="u in animCurrentTick.aUnits" :key="'re-a-' + u.id"
-                  class="bf2d-range-circle team-a"
-                  :cx="getSvgX(u.x)"
-                  :cy="getSvgY(u.y || 0)"
-                  :rx="getSvgRange(u.maxRange)"
-                  :ry="getSvgRange(u.maxRange)"
-                  stroke-width="1"
-                />
-                <ellipse
-                  v-for="u in animCurrentTick.bUnits" :key="'re-b-' + u.id"
-                  class="bf2d-range-circle team-b"
-                  :cx="getSvgX(u.x)"
-                  :cy="getSvgY(u.y || 0)"
-                  :rx="getSvgRange(u.maxRange)"
-                  :ry="getSvgRange(u.maxRange)"
-                  stroke-width="1"
-                />
-              </template>
-
-              <!-- Fire lines: Team A shooting -->
-              <template v-for="u in animCurrentTick.aUnits" :key="'fl-a-' + u.id">
-                <line
-                  v-if="u.firingAt && animCurrentTick.bUnits.find(t => t.id === u.firingAt)"
-                  class="bf2d-shot-line team-a"
-                  :x1="getSvgX(u.x)"
-                  :y1="getSvgY(u.y || 0)"
-                  :x2="getSvgX(animCurrentTick.bUnits.find(t => t.id === u.firingAt).x)"
-                  :y2="getSvgY(animCurrentTick.bUnits.find(t => t.id === u.firingAt).y || 0)"
-                  stroke-width="1.5"
-                />
-              </template>
-
-              <!-- Fire lines: Team B shooting -->
-              <template v-for="u in animCurrentTick.bUnits" :key="'fl-b-' + u.id">
-                <line
-                  v-if="u.firingAt && animCurrentTick.aUnits.find(t => t.id === u.firingAt)"
-                  class="bf2d-shot-line team-b"
-                  :x1="getSvgX(u.x)"
-                  :y1="getSvgY(u.y || 0)"
-                  :x2="getSvgX(animCurrentTick.aUnits.find(t => t.id === u.firingAt).x)"
-                  :y2="getSvgY(animCurrentTick.aUnits.find(t => t.id === u.firingAt).y || 0)"
-                  stroke-width="1.5"
-                />
-              </template>
-            </svg>
-
-            <!-- Team A units -->
-            <div
-              v-for="u in animCurrentTick.aUnits"
-              :key="'u-a-' + u.id"
-              class="bf2d-unit team-a"
-              :class="{ 'bf2d-dead': u.hp <= 0 }"
-              :style="{ left: `${getUnitLeftPercent(u.x)}%`, top: `${getUnitTopPercent(u.y || 0)}%` }"
-            >
-              <div class="bf2d-hp-bar">
-                <div class="bf2d-hp-fill team-a" :style="{ width: `${Math.max(0, (u.hp / u.maxHp) * 100)}%` }"></div>
-              </div>
-              <img :src="u.icon" :title="u.name" />
-            </div>
-
-            <!-- Team B units -->
-            <div
-              v-for="u in animCurrentTick.bUnits"
-              :key="'u-b-' + u.id"
-              class="bf2d-unit team-b"
-              :class="{ 'bf2d-dead': u.hp <= 0 }"
-              :style="{ left: `${getUnitLeftPercent(u.x)}%`, top: `${getUnitTopPercent(u.y || 0)}%` }"
-            >
-              <div class="bf2d-hp-bar">
-                <div class="bf2d-hp-fill team-b" :style="{ width: `${Math.max(0, (u.hp / u.maxHp) * 100)}%` }"></div>
-              </div>
-              <img :src="u.icon" :title="u.name" />
-            </div>
-
-            <!-- Fire flash effects for active shooters -->
-            <template v-for="u in animCurrentTick.aUnits" :key="'ff-a-' + u.id + '-' + animSim.currentTickIndex">
-              <div
-                v-if="u.firingAt"
-                class="bf2d-fire-flash team-a"
-                :style="{ left: `${getUnitLeftPercent(u.x)}%`, top: `${getUnitTopPercent(u.y || 0)}%` }"
-              ></div>
-            </template>
-            <template v-for="u in animCurrentTick.bUnits" :key="'ff-b-' + u.id + '-' + animSim.currentTickIndex">
-              <div
-                v-if="u.firingAt"
-                class="bf2d-fire-flash team-b"
-                :style="{ left: `${getUnitLeftPercent(u.x)}%`, top: `${getUnitTopPercent(u.y || 0)}%` }"
-              ></div>
-            </template>
-
-          </div>
-        </div>
-
-
-        <!-- Winner Banner (shown once done) -->
-        <div v-if="animSim.done" 
-          style="margin: 0 24px 12px; padding:10px 16px; border-radius:6px; text-align:center; font-family:var(--font-title); font-size:0.95rem; font-weight:bold; border:1px solid; animation: fadeIn 0.4s ease;"
-          :style="{
-            borderColor: animSim.sim.winner === 'Draw' ? 'var(--color-orange)' : 'var(--color-green)',
-            color: animSim.sim.winner === 'Draw' ? 'var(--color-orange)' : 'var(--color-green)',
-            background: animSim.sim.winner === 'Draw' ? 'rgba(249,115,22,0.06)' : 'rgba(34,197,94,0.06)'
-          }"
-        >
-          {{ animSim.sim.resultText }}
-          <span v-if="animSim.sim.winner !== 'Draw'"> ({{ animSim.sim.remainingHpPercent }}% {{ t('hpPercentRemaining') }})</span>
-        </div>
-
-        <!-- Survivor lists (shown once done) -->
-        <div v-if="animSim.done" style="display:flex; gap:12px; padding: 0 24px 12px;">
-          <div v-for="(side, key) in { A: animSim.sim.a, B: animSim.sim.b }" :key="key"
-            style="flex:1; background: rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:6px; padding:10px;"
-          >
-            <div style="font-family:var(--font-title); font-size:0.65rem; color:var(--text-dim); text-transform:uppercase; margin-bottom:8px;">{{ side.name }}</div>
-            <div v-if="side.detailedUnits && side.detailedUnits.length > 0" style="display:flex; flex-direction:column; gap:4px; max-height:130px; overflow-y:auto;">
-              <div v-for="u in side.detailedUnits" :key="u.name"
-                style="display:flex; align-items:center; justify-content:space-between; padding:3px 6px; border-radius:3px;"
-                :style="{ background: u.survivedCount > 0 ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)' }"
-              >
-                <div style="display:flex; align-items:center; gap:6px;">
-                  <img :src="u.icon" style="width:16px;height:16px;object-fit:contain;" />
-                  <span style="font-size:0.65rem; color:#cbd5e1; max-width:90px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" :title="u.name">{{ u.name }}</span>
-                </div>
-                <span style="font-family:var(--font-title); font-size:0.65rem; font-weight:bold;"
-                  :style="{ color: u.survivedCount > 0 ? 'var(--color-green)' : 'var(--color-red)' }"
-                >{{ u.survivedCount }}/{{ u.initialCount }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Live Event Log -->
-        <div style="border-top:1px solid rgba(255,255,255,0.06); padding:10px 24px 16px; flex:1; overflow:hidden; display:flex; flex-direction:column;">
-          <div style="font-family:var(--font-title); font-size:0.62rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:8px;">
-            {{ lang === 'ru' ? 'Лог событий' : 'Event Log' }}
-          </div>
-          <div class="anim-log-list" ref="animLogRef">
-            <div v-for="(entry, i) in animSim.displayedLog" :key="i"
-              class="log-entry anim-log-entry"
-              :class="{ 'log-entry-new': i >= animSim.displayedLog.length - 3 }"
-            >
-              <span class="log-time">[{{ entry.time.toFixed(1) }}s]</span>
-              <span v-if="entry.type === 'death'" style="display:inline-flex; align-items:center; gap:5px;">
-                <Flame :size="12" style="color: var(--color-orange);" />
                 <img :src="entry.icon" style="width:14px;height:14px;object-fit:contain;vertical-align:middle;" />
                 <strong style="color:#fff; font-size:0.68rem;">{{ entry.unitName }}</strong>
                 <span class="log-msg">{{ entry.event }}</span>
@@ -3165,28 +4168,60 @@ const vFocus = {
       </div>
     </div>
 
+    <!-- Animated Battle Simulation Modal -->
+    <SimulationModal
+      :animSim="animSim"
+      :lang="lang"
+      :t="t"
+      :trackWidth="trackWidth"
+      :getSvgX="getSvgX"
+      :getSvgY="getSvgY"
+      :getSvgRange="getSvgRange"
+      :getUnitLeftPercent="getUnitLeftPercent"
+      :getUnitTopPercent="getUnitTopPercent"
+      :getVictoryEaseDetails="getVictoryEaseDetails"
+      @close="stopAnimatedSim"
+      @play="startAnimatedSim"
+      @pause="pauseAnimatedSim"
+      @step="stepAnimatedSim"
+      @setSpeed="setPlaybackSpeed"
+      @seek="seekAnimatedSim"
+      @downloadCard="downloadResultCardImage"
+    />
+
+    <!-- Opponent Counter Ratings Modal -->
+    <CounterModal
+      :show="showCounterModal"
+      :counterRatings="counterRatings"
+      :lang="lang"
+      :t="t"
+      :hardestUnitId="counterSelectedNodeUuid ? (getElement(counterSelectedNodeUuid)?.type === 'unit' ? hardestCountersCache[getElement(counterSelectedNodeUuid).unitId] : counterRatings[0]?.unitId) : null"
+      @close="showCounterModal = false"
+      @spawn="spawnCounterOpponent"
+    />
+
+    <!-- Specs Comparison Modal -->
+    <CompareModal
+      :show="showCompareModal"
+      :compareUnitIds="compareUnitIds"
+      :lang="lang"
+      :getUnitById="getUnitById"
+      :getBestValue="getBestValue"
+      :getWorstValue="getWorstValue"
+      :getUnitEnergyStats="getUnitEnergyStats"
+      :normalizeLayer="normalizeLayer"
+      :formatTargetLabel="formatTargetLabel"
+      :t="t"
+      @close="showCompareModal = false"
+    />
+
     <!-- Help / Onboarding Modal -->
-    <div v-if="showHelpModal" class="modal-overlay" @click="showHelpModal = false">
-      <div class="modal-content" @click.stop style="width: 500px;">
-        <div class="modal-header">
-          <h3 class="modal-title">{{ t('helpTitle') }}</h3>
-          <button class="close-btn" @click="showHelpModal = false">
-            <X :size="18" />
-          </button>
-        </div>
-        <div class="modal-body" style="line-height: 1.6; font-size: 0.9rem; color: var(--text-secondary);">
-          <ul style="padding-left: 20px; display: flex; flex-direction: column; gap: 10px;">
-            <li><strong>{{ lang === 'ru' ? 'Инструкции' : 'Instructions' }}:</strong></li>
-            <li>{{ t('help1') }}</li>
-            <li>{{ t('help2') }}</li>
-            <li>{{ t('help3') }}</li>
-            <li>{{ t('help4') }}</li>
-            <li>{{ t('help5') }}</li>
-            <li><strong>Layout Sync:</strong> Save and Load layouts using JSON files or enjoy instant persistent auto-saving in your browser.</li>
-          </ul>
-        </div>
-      </div>
-    </div>
+    <HelpModal
+      :show="showHelpModal"
+      :lang="lang"
+      :t="t"
+      @close="showHelpModal = false"
+    />
 
     <!-- Full Unit Info Modal -->
     <div v-if="showUnitDetailModal && unitDetailSpec" class="modal-overlay" @click="showUnitDetailModal = false">
@@ -3256,6 +4291,35 @@ const vFocus = {
               <div class="stat-card" v-if="unitDetailSpec.is_builder && unitDetailSpec.build_metal_rate">
                 <span class="stat-card-label">{{ lang === 'ru' ? 'Скорость ремонта' : 'Repair Rate' }}</span>
                 <span class="stat-card-val" style="color: #34d399;">{{ unitDetailSpec.build_metal_rate }} <span style="font-size:0.6rem;opacity:0.7;">m/s</span></span>
+              </div>
+              <!-- Build Energy (if structure) -->
+              <div class="stat-card" v-if="unitDetailSpec.unit_types?.includes('UNITTYPE_Structure')">
+                <span class="stat-card-label">{{ lang === 'ru' ? 'Энергия (постр.)' : 'Build Energy' }}</span>
+                <span class="stat-card-val" style="color: var(--color-cyan);">{{ (unitDetailSpec.cost * 25).toLocaleString() }} E</span>
+              </div>
+              <!-- Energy Production -->
+              <div class="stat-card" v-if="getUnitEnergyStats(unitDetailSpec)?.energyProd > 0">
+                <span class="stat-card-label">{{ lang === 'ru' ? 'Выработка энергии' : 'Energy Production' }}</span>
+                <span class="stat-card-val" style="color: #4ade80;">+{{ getUnitEnergyStats(unitDetailSpec).energyProd.toLocaleString() }} E/s</span>
+              </div>
+              <!-- Energy Consumption -->
+              <div class="stat-card" v-if="getUnitEnergyStats(unitDetailSpec)?.energyCons > 0">
+                <span class="stat-card-label">{{ lang === 'ru' ? 'Потребление энергии' : 'Energy Consumption' }}</span>
+                <span class="stat-card-val" style="color: #f87171;">-{{ getUnitEnergyStats(unitDetailSpec).energyCons.toLocaleString() }} E/s</span>
+              </div>
+              <!-- Attack Speed (Atk/s) -->
+              <div class="stat-card" v-if="unitDetailSpec.weapons?.length">
+                <span class="stat-card-label">{{ lang === 'ru' ? 'Ск. атаки (оруд.)' : 'Atk Speed (wpns)' }}</span>
+                <span class="stat-card-val">{{ unitDetailSpec.weapons.map(w => w.rate_of_fire.toFixed(2)).join(' / ') }} /s</span>
+              </div>
+              <!-- Targets -->
+              <div class="stat-card" v-if="unitDetailSpec.target_labels?.length" style="grid-column: span 2;">
+                <span class="stat-card-label">{{ lang === 'ru' ? 'Цели (Слои)' : 'Targets (Layers)' }}</span>
+                <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:4px;">
+                  <span v-for="lbl in unitDetailSpec.target_labels" :key="lbl" class="target-badge" :class="'target-' + normalizeLayer(lbl)">
+                    {{ formatTargetLabel(lbl) }}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -3333,7 +4397,44 @@ const vFocus = {
           <button class="close-btn" @click="showSimSettingsModal = false"><X :size="18" /></button>
         </div>
         
-        <div class="modal-body" style="display:flex; flex-direction:column; gap:16px; padding:20px 0 10px;">
+        <div class="modal-body" style="display:flex; flex-direction:column; gap:16px; padding:20px 24px 10px;">
+          <!-- Interface Language -->
+          <div class="setting-row">
+            <label class="setting-label">{{ lang === 'ru' ? 'Язык интерфейса' : 'Interface Language' }}</label>
+            <div style="display: flex; gap: 8px;">
+              <button 
+                @click="lang = 'ru'"
+                class="btn"
+                :style="{
+                  borderColor: lang === 'ru' ? 'var(--color-cyan)' : 'var(--border-dim)',
+                  background: lang === 'ru' ? 'rgba(6,182,212,0.1)' : 'transparent',
+                  color: lang === 'ru' ? '#fff' : 'var(--text-dim)',
+                  cursor: 'pointer',
+                  padding: '4px 12px',
+                  fontSize: '0.75rem',
+                  fontWeight: lang === 'ru' ? 'bold' : 'normal'
+                }"
+              >
+                RU
+              </button>
+              <button 
+                @click="lang = 'en'"
+                class="btn"
+                :style="{
+                  borderColor: lang === 'en' ? 'var(--color-cyan)' : 'var(--border-dim)',
+                  background: lang === 'en' ? 'rgba(6,182,212,0.1)' : 'transparent',
+                  color: lang === 'en' ? '#fff' : 'var(--text-dim)',
+                  cursor: 'pointer',
+                  padding: '4px 12px',
+                  fontSize: '0.75rem',
+                  fontWeight: lang === 'en' ? 'bold' : 'normal'
+                }"
+              >
+                EN
+              </button>
+            </div>
+          </div>
+
           <!-- Max Time -->
           <div class="setting-row">
             <label class="setting-label">{{ lang === 'ru' ? 'Макс. длительность боя' : 'Max Combat Time' }}</label>
@@ -3378,7 +4479,7 @@ const vFocus = {
           </div>
         </div>
 
-        <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+        <div style="display:flex; justify-content:flex-end; padding: 12px 24px 24px; border-top: 1px solid var(--border-dim); background: rgba(255, 255, 255, 0.01);">
           <button class="btn btn-secondary" @click="showSimSettingsModal = false">
             {{ lang === 'ru' ? 'Готово' : 'Done' }}
           </button>
@@ -3429,6 +4530,7 @@ const vFocus = {
             </label>
           </div>
 
+
           <!-- 2D Position Canvas -->
           <div>
             <div style="font-family: var(--font-title); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-cyan); margin-bottom: 8px; display:flex; align-items:center; gap:6px;">
@@ -3438,6 +4540,44 @@ const vFocus = {
 
             <div class="bf-canvas-wrap">
               <div class="bf-canvas-grid"></div>
+
+              <!-- SVG layer for range circles -->
+              <svg 
+                v-if="activeEditingConnection.settings.showRanges"
+                :viewBox="`0 0 ${activeEditingConnection.settings.initialDistance * 2 + 300} 200`"
+                style="position: absolute; inset: 0; pointer-events: none; z-index: 5; width: 100%; height: 100%;"
+              >
+                <!-- Team A ranges -->
+                <template v-for="(stack, stackIdx) in getCombatants(getElement(activeEditingConnection.fromUuid))" :key="'ranges-a-' + stack.uuid">
+                  <circle
+                    v-for="(wpn, wIdx) in (getUnitById(stack.unitId)?.weapons || [])"
+                    :key="wIdx"
+                    :cx="getConnPos2D(activeEditingConnection, stack.uuid, -activeEditingConnection.settings.initialDistance / 2 - stackIdx * 25, (stackIdx - Math.floor(getCombatants(getElement(activeEditingConnection.fromUuid)).length / 2)) * 22).x + activeEditingConnection.settings.initialDistance + 150"
+                    :cy="getConnPos2D(activeEditingConnection, stack.uuid, -activeEditingConnection.settings.initialDistance / 2 - stackIdx * 25, (stackIdx - Math.floor(getCombatants(getElement(activeEditingConnection.fromUuid)).length / 2)) * 22).y + 100"
+                    :r="wpn.range"
+                    fill="none"
+                    stroke="rgba(34, 197, 94, 0.4)"
+                    stroke-width="1.5"
+                    stroke-dasharray="3 3"
+                    vector-effect="non-scaling-stroke"
+                  />
+                </template>
+                <!-- Team B ranges -->
+                <template v-for="(stack, stackIdx) in getCombatants(getElement(activeEditingConnection.toUuid))" :key="'ranges-b-' + stack.uuid">
+                  <circle
+                    v-for="(wpn, wIdx) in (getUnitById(stack.unitId)?.weapons || [])"
+                    :key="wIdx"
+                    :cx="getConnPos2D(activeEditingConnection, stack.uuid, activeEditingConnection.settings.initialDistance / 2 + stackIdx * 25, (stackIdx - Math.floor(getCombatants(getElement(activeEditingConnection.toUuid)).length / 2)) * 22).x + activeEditingConnection.settings.initialDistance + 150"
+                    :cy="getConnPos2D(activeEditingConnection, stack.uuid, activeEditingConnection.settings.initialDistance / 2 + stackIdx * 25, (stackIdx - Math.floor(getCombatants(getElement(activeEditingConnection.toUuid)).length / 2)) * 22).y + 100"
+                    :r="wpn.range"
+                    fill="none"
+                    stroke="rgba(239, 68, 68, 0.4)"
+                    stroke-width="1.5"
+                    stroke-dasharray="3 3"
+                    vector-effect="non-scaling-stroke"
+                  />
+                </template>
+              </svg>
               <span class="bf-canvas-label-a">{{ getElement(activeEditingConnection.fromUuid)?.name || (lang === 'ru' ? 'Команда А' : 'Team A') }}</span>
               <span class="bf-canvas-midline-label">{{ lang === 'ru' ? '— линия фронта —' : '— front line —' }}</span>
               <span class="bf-canvas-label-b">{{ getElement(activeEditingConnection.toUuid)?.name || (lang === 'ru' ? 'Команда Б' : 'Team B') }}</span>
@@ -3511,30 +4651,14 @@ const vFocus = {
 
 
     <!-- Commander Skins Picker Modal -->
-    <div v-if="showSkinModal" class="modal-overlay" @click="showSkinModal = false">
-      <div class="modal-content" @click.stop style="width: 680px; max-height: 80vh; display: flex; flex-direction: column;">
-        <div class="modal-header">
-          <h3 class="modal-title" style="display:flex; align-items:center; gap:8px;">
-            <Palette :size="16" style="color:var(--color-orange);" />
-            {{ lang === 'ru' ? 'Выбор скина Командира' : 'Select Commander Skin' }} ({{ allCommanders.length }})
-          </h3>
-          <button class="close-btn" @click="showSkinModal = false"><X :size="18" /></button>
-        </div>
-        
-        <div class="modal-body" style="overflow-y: auto; padding: 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px;">
-          <div 
-            v-for="cmd in allCommanders" 
-            :key="cmd.id"
-            class="skin-grid-item"
-            :class="{ active: skinCard && (skinCard.skinId === cmd.id || (!skinCard.skinId && skinCard.unitId === cmd.id)) }"
-            @click="selectSkin(cmd)"
-          >
-            <img :src="cmd.icon" class="skin-img" />
-            <div class="skin-title">{{ cmd.name }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <SkinModal
+      :show="showSkinModal"
+      :allCommanders="allCommanders"
+      :lang="lang"
+      :skinCard="skinCard"
+      @close="showSkinModal = false"
+      @select="selectSkin"
+    />
 
   </div>
 </template>
