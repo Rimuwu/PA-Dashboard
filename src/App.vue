@@ -3133,7 +3133,7 @@ const vFocus = {
         <div class="logo-text">
           <Sword class="logo-icon" style="color: var(--color-cyan);" />
           <a 
-            href="https://rimuwu.github.io/PA-Dashboard/" 
+            href="https://github.com/Rimuwu/PA-Dashboard" 
             target="_blank" 
             rel="noopener noreferrer"
             class="logo-link"
