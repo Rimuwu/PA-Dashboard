@@ -87,7 +87,6 @@ Optimized and compiled build outputs will be generated inside the `dist/` direct
 
 * **Pan Canvas**: Hold Middle Mouse Button (scroll wheel) or Left Mouse Button on empty canvas space and drag.
 * **Zoom Canvas**: Use the mouse scroll wheel.
-* **Marquee Select**: Click and drag Left Mouse Button across empty space to draw a selection window.
 * **Multi-Select**: Hold `Shift` while clicking individual unit cards.
 * **Duplicate Card**: Right-click on a card -> select *Duplicate card*.
 * **Create Link**: Drag from a card connector port (left/right edge) and drop onto another unit or group area.
