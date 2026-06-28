@@ -66,7 +66,6 @@ export const getVictoryEaseDetails = (hpPercent, langVal) => {
   }
 };
 
-// Dynamic battle simulator running mass group or card combat
 export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal, getUnitById, getCombatants) => {
   const listA = getCombatants(nodeA);
   const listB = getCombatants(nodeB);
@@ -86,6 +85,27 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
     const maxRange = spec?.weapons && spec.weapons.length > 0
       ? Math.max(...spec.weapons.map(w => w.range))
       : 100;
+
+    const isStructure = spec?.unit_types?.includes('UNITTYPE_Structure');
+    const isCmd = spec?.category === 'commander' || spec?.id?.includes('commander');
+    const isTitan = spec?.unit_types?.includes('UNITTYPE_Titan');
+    const isWall = spec?.unit_types?.includes('UNITTYPE_Wall');
+    const isFactory = spec?.is_factory || spec?.id?.includes('factory');
+    
+    let radius = 4;
+    if (isStructure) {
+      if (isFactory || spec?.id?.includes('launcher') || spec?.id?.includes('artillery')) {
+        radius = 25;
+      } else if (isWall) {
+        radius = 8;
+      } else {
+        radius = 15;
+      }
+    } else if (isCmd) {
+      radius = 6;
+    } else if (isTitan) {
+      radius = 10;
+    }
     
     for (let i = 0; i < stack.count; i++) {
       aList.push({
@@ -110,6 +130,8 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
           target_layers: w.target_layers || [],
           auto_attack: w.auto_attack,
           manual_fire: w.manual_fire,
+          ammo_spec_path: w.ammo_spec_path || '',
+          anti_entity_targets: w.anti_entity_targets || [],
           nextFireTime: 0
         })) : [],
         layers: stack.layers,
@@ -118,9 +140,15 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
         x: pos2d.x - i * 8,
         y: pos2d.y + (i % 3 - 1) * 10,
         firingAt: null,
+        fires: [],
         maxRange,
+        radius,
+        team: 'A',
         visionRadius: spec?.vision_radius || 0,
-        radarRadius: spec?.radar_radius || 0
+        radarRadius: spec?.radar_radius || 0,
+        is_builder: spec?.is_builder || false,
+        build_metal_rate: spec?.build_metal_rate || 0,
+        self_destruct: spec?.unit_types?.includes('UNITTYPE_SelfDestruct') || spec?.id?.includes('land_mine') || spec?.name?.toLowerCase()?.includes('mine') || false
       });
     }
   });
@@ -136,6 +164,27 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
     const maxRange = spec?.weapons && spec.weapons.length > 0
       ? Math.max(...spec.weapons.map(w => w.range))
       : 100;
+
+    const isStructure = spec?.unit_types?.includes('UNITTYPE_Structure');
+    const isCmd = spec?.category === 'commander' || spec?.id?.includes('commander');
+    const isTitan = spec?.unit_types?.includes('UNITTYPE_Titan');
+    const isWall = spec?.unit_types?.includes('UNITTYPE_Wall');
+    const isFactory = spec?.is_factory || spec?.id?.includes('factory');
+    
+    let radius = 4;
+    if (isStructure) {
+      if (isFactory || spec?.id?.includes('launcher') || spec?.id?.includes('artillery')) {
+        radius = 25;
+      } else if (isWall) {
+        radius = 8;
+      } else {
+        radius = 15;
+      }
+    } else if (isCmd) {
+      radius = 6;
+    } else if (isTitan) {
+      radius = 10;
+    }
     
     for (let i = 0; i < stack.count; i++) {
       bList.push({
@@ -160,6 +209,8 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
           target_layers: w.target_layers || [],
           auto_attack: w.auto_attack,
           manual_fire: w.manual_fire,
+          ammo_spec_path: w.ammo_spec_path || '',
+          anti_entity_targets: w.anti_entity_targets || [],
           nextFireTime: 0
         })) : [],
         layers: stack.layers,
@@ -168,9 +219,15 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
         x: pos2d.x + i * 8,
         y: pos2d.y + (i % 3 - 1) * 10,
         firingAt: null,
+        fires: [],
         maxRange,
+        radius,
+        team: 'B',
         visionRadius: spec?.vision_radius || 0,
-        radarRadius: spec?.radar_radius || 0
+        radarRadius: spec?.radar_radius || 0,
+        is_builder: spec?.is_builder || false,
+        build_metal_rate: spec?.build_metal_rate || 0,
+        self_destruct: spec?.unit_types?.includes('UNITTYPE_SelfDestruct') || spec?.id?.includes('land_mine') || spec?.name?.toLowerCase()?.includes('mine') || false
       });
     }
   });
@@ -216,7 +273,6 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
   const tick = 0.1;
   let maxSimTime = simSettingsVal?.maxTime || 120;
   
-  // Short circuit if neither side can hit the other
   const canAAttackB = aList.some(attacker => 
     attacker.weapons?.some(wpn => 
       bList.some(target => canTargetLayer(wpn.target_layers, target.layers))
@@ -231,8 +287,6 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
     time = maxSimTime;
   }
 
-  let wpnDmgAccA = {};
-  let wpnDmgAccB = {};
   let damageQueue = [];
   
   while (aList.length > 0 && bList.length > 0 && time < maxSimTime) {
@@ -241,14 +295,13 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
     aList.forEach(u => { u.firingAt = null; u.fires = (u.fires || []).filter(f => time < f.expireTime); });
     bList.forEach(u => { u.firingAt = null; u.fires = (u.fires || []).filter(f => time < f.expireTime); });
     
-    // 1. Team A actions (fire or move)
     aList.forEach(attacker => {
       if (attacker.hp <= 0) return;
       
       const rawWeapons = attacker.weapons && attacker.weapons.length > 0 
         ? attacker.weapons 
         : [{ name: 'Default Gun', dps: 10, range: 100, target_layers: ['WL_LandHorizontal', 'WL_WaterSurface'] }];
-      const weapons = rawWeapons.filter(w => !w.manual_fire && w.auto_attack !== false);
+      const weapons = rawWeapons.filter(w => (!w.manual_fire || (w.anti_entity_targets && w.anti_entity_targets.length > 0)) && w.auto_attack !== false);
       
       let fired = false;
       let shortestTargetingRange = Infinity;
@@ -261,6 +314,57 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
         }
         if (time < wpn.nextFireTime) {
           return;
+        }
+
+        if (wpn.anti_entity_targets && wpn.anti_entity_targets.length > 0) {
+          const enemyProj = damageQueue.filter(p => 
+            p.team !== attacker.team && 
+            !p.intercepted && 
+            wpn.anti_entity_targets.includes(p.ammo_spec_path)
+          );
+          
+          if (enemyProj.length > 0) {
+            let targetProj = null;
+            let minDist = Infinity;
+            
+            enemyProj.forEach(p => {
+              const duration = p.applyTime - p.spawnTime;
+              const elapsed = time - p.spawnTime;
+              const progress = duration > 0 ? Math.min(1, Math.max(0, elapsed / duration)) : 1;
+              const targetList = p.team === 'A' ? bList : aList;
+              const targetUnit = targetList.find(u => u.id === p.targetId);
+              const endX = targetUnit ? targetUnit.x : p.startX;
+              const endY = targetUnit ? (targetUnit.y || 0) : p.startY;
+              
+              const projX = p.startX + (endX - p.startX) * progress;
+              const projY = p.startY + (endY - p.startY) * progress;
+              
+              const dist = Math.hypot(attacker.x - projX, (attacker.y || 0) - projY);
+              if (dist <= wpn.range && dist < minDist) {
+                minDist = dist;
+                targetProj = p;
+              }
+            });
+            
+            if (targetProj) {
+              targetProj.intercepted = true;
+              const isDiscrete = wpn.rate_of_fire > 0;
+              wpn.nextFireTime = time + (isDiscrete ? (1.0 / wpn.rate_of_fire) : tick);
+              
+              if (!fastMode) {
+                const targetList = targetProj.team === 'A' ? bList : aList;
+                const targetName = targetList.find(u => u.id === targetProj.targetId)?.name || (targetProj.team === 'A' ? 'Beta' : 'Alpha');
+                log.push({
+                  time: Number(time.toFixed(1)),
+                  type: 'intercept',
+                  event: langVal === 'ru'
+                    ? `${attacker.name} перехватил снаряд летящий в ${targetName}`
+                    : `${attacker.name} intercepted projectile targeting ${targetName}`
+                });
+              }
+              return;
+            }
+          }
         }
         
         const targets = bList.filter(t => t.hp > 0 && canTargetLayer(wpn.target_layers, t.layers));
@@ -280,7 +384,7 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
           }
           const dist2d = minDist;
           
-          if (dist2d <= wpn.range) {
+          if (Math.max(0, dist2d - attacker.radius - target.radius) <= wpn.range) {
             fired = true;
             
             const attackerAlt = attacker.altitude || 0;
@@ -302,6 +406,9 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
               } else if (wpn.flight_type === 'Seeking') {
                 flightTime += 0.5;
               }
+              if (attacker.altitude > 0 && target.altitude === 0 && wpn.muzzle_velocity < 50) {
+                flightTime = Math.min(1.0, flightTime);
+              }
             }
             
             damageQueue.push({
@@ -311,25 +418,19 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
               startY: attacker.y || 0,
               targetId: target.id,
               damage: dmg,
-              splashDamage: wpn.splash_damage ? wpn.splash_damage : 0,
+              splashDamage: wpn.splash_damage ? wpn.splash_damage : (wpn.splash_radius > 0 ? wpn.damage : 0),
               splashRadius: wpn.splash_radius || 0,
-              team: 'A'
+              team: attacker.team,
+              ammo_spec_path: wpn.ammo_spec_path || ''
             });
             
             wpn.nextFireTime = time + (isDiscrete ? (1.0 / wpn.rate_of_fire) : tick);
-            
-            const wKey = `${wpn.name}__${target.name}`;
-            if (!wpnDmgAccA[wKey]) {
-              wpnDmgAccA[wKey] = { wpnName: wpn.name, targetName: target.name, damage: 0, attackerName: attacker.name };
+            if (attacker.self_destruct) {
+              attacker.hp = 0;
             }
-            wpnDmgAccA[wKey].damage += dmg;
           }
         }
       });
-      
-      if (attacker.fires && attacker.fires.length > 0) {
-        attacker.firingAt = attacker.fires[0].targetId;
-      }
       
       let shouldMove = !fired;
       if (attacker.move_speed > 0) {
@@ -346,7 +447,7 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
             }
           }
           if (fired && shortestTargetingRange !== Infinity) {
-            if (minDist > shortestTargetingRange) {
+            if (Math.max(0, minDist - attacker.radius - closest.radius) > shortestTargetingRange) {
               shouldMove = true;
             }
           }
@@ -359,14 +460,13 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
       }
     });
     
-    // 2. Team B actions (fire or move)
     bList.forEach(attacker => {
       if (attacker.hp <= 0) return;
       
       const rawWeapons = attacker.weapons && attacker.weapons.length > 0 
         ? attacker.weapons 
         : [{ name: 'Default Gun', dps: 10, range: 100, target_layers: ['WL_LandHorizontal', 'WL_WaterSurface'] }];
-      const weapons = rawWeapons.filter(w => !w.manual_fire && w.auto_attack !== false);
+      const weapons = rawWeapons.filter(w => (!w.manual_fire || (w.anti_entity_targets && w.anti_entity_targets.length > 0)) && w.auto_attack !== false);
       
       let fired = false;
       let shortestTargetingRange = Infinity;
@@ -379,6 +479,57 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
         }
         if (time < wpn.nextFireTime) {
           return;
+        }
+
+        if (wpn.anti_entity_targets && wpn.anti_entity_targets.length > 0) {
+          const enemyProj = damageQueue.filter(p => 
+            p.team !== attacker.team && 
+            !p.intercepted && 
+            wpn.anti_entity_targets.includes(p.ammo_spec_path)
+          );
+          
+          if (enemyProj.length > 0) {
+            let targetProj = null;
+            let minDist = Infinity;
+            
+            enemyProj.forEach(p => {
+              const duration = p.applyTime - p.spawnTime;
+              const elapsed = time - p.spawnTime;
+              const progress = duration > 0 ? Math.min(1, Math.max(0, elapsed / duration)) : 1;
+              const targetList = p.team === 'A' ? bList : aList;
+              const targetUnit = targetList.find(u => u.id === p.targetId);
+              const endX = targetUnit ? targetUnit.x : p.startX;
+              const endY = targetUnit ? (targetUnit.y || 0) : p.startY;
+              
+              const projX = p.startX + (endX - p.startX) * progress;
+              const projY = p.startY + (endY - p.startY) * progress;
+              
+              const dist = Math.hypot(attacker.x - projX, (attacker.y || 0) - projY);
+              if (dist <= wpn.range && dist < minDist) {
+                minDist = dist;
+                targetProj = p;
+              }
+            });
+            
+            if (targetProj) {
+              targetProj.intercepted = true;
+              const isDiscrete = wpn.rate_of_fire > 0;
+              wpn.nextFireTime = time + (isDiscrete ? (1.0 / wpn.rate_of_fire) : tick);
+              
+              if (!fastMode) {
+                const targetList = targetProj.team === 'A' ? bList : aList;
+                const targetName = targetList.find(u => u.id === targetProj.targetId)?.name || (targetProj.team === 'A' ? 'Beta' : 'Alpha');
+                log.push({
+                  time: Number(time.toFixed(1)),
+                  type: 'intercept',
+                  event: langVal === 'ru'
+                    ? `${attacker.name} перехватил снаряд летящий в ${targetName}`
+                    : `${attacker.name} intercepted projectile targeting ${targetName}`
+                });
+              }
+              return;
+            }
+          }
         }
         
         const targets = aList.filter(t => t.hp > 0 && canTargetLayer(wpn.target_layers, t.layers));
@@ -398,7 +549,7 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
           }
           const dist2d = minDist;
           
-          if (dist2d <= wpn.range) {
+          if (Math.max(0, dist2d - attacker.radius - target.radius) <= wpn.range) {
             fired = true;
             
             const attackerAlt = attacker.altitude || 0;
@@ -420,6 +571,9 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
               } else if (wpn.flight_type === 'Seeking') {
                 flightTime += 0.5;
               }
+              if (attacker.altitude > 0 && target.altitude === 0 && wpn.muzzle_velocity < 50) {
+                flightTime = Math.min(1.0, flightTime);
+              }
             }
             
             damageQueue.push({
@@ -429,25 +583,19 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
               startY: attacker.y || 0,
               targetId: target.id,
               damage: dmg,
-              splashDamage: wpn.splash_damage ? wpn.splash_damage : 0,
+              splashDamage: wpn.splash_damage ? wpn.splash_damage : (wpn.splash_radius > 0 ? wpn.damage : 0),
               splashRadius: wpn.splash_radius || 0,
-              team: 'B'
+              team: attacker.team,
+              ammo_spec_path: wpn.ammo_spec_path || ''
             });
             
             wpn.nextFireTime = time + (isDiscrete ? (1.0 / wpn.rate_of_fire) : tick);
-            
-            const wKey = `${wpn.name}__${target.name}`;
-            if (!wpnDmgAccB[wKey]) {
-              wpnDmgAccB[wKey] = { wpnName: wpn.name, targetName: target.name, damage: 0, attackerName: attacker.name };
+            if (attacker.self_destruct) {
+              attacker.hp = 0;
             }
-            wpnDmgAccB[wKey].damage += dmg;
           }
         }
       });
-      
-      if (attacker.fires && attacker.fires.length > 0) {
-        attacker.firingAt = attacker.fires[0].targetId;
-      }
       
       let shouldMove = !fired;
       if (attacker.move_speed > 0) {
@@ -464,7 +612,7 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
             }
           }
           if (fired && shortestTargetingRange !== Infinity) {
-            if (minDist > shortestTargetingRange) {
+            if (Math.max(0, minDist - attacker.radius - closest.radius) > shortestTargetingRange) {
               shouldMove = true;
             }
           }
@@ -476,16 +624,56 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
         }
       }
     });
+
+    // Repair logic: builders repair closest damaged friendly units
+    const runRepairForTeam = (builders, allAllianceUnits) => {
+      builders.forEach(builder => {
+        if (builder.hp <= 0 || !builder.is_builder || builder.build_metal_rate <= 0) return;
+        
+        // Find damaged allies within range
+        const buildRange = 40;
+        let target = null;
+        let lowestHpRatio = 1.0;
+        
+        allAllianceUnits.forEach(u => {
+          if (u.id === builder.id || u.hp <= 0 || u.hp >= u.maxHp) return;
+          const dist = Math.hypot(builder.x - u.x, (builder.y || 0) - (u.y || 0));
+          if (dist - builder.radius - u.radius <= buildRange) {
+            const ratio = u.hp / u.maxHp;
+            if (ratio < lowestHpRatio) {
+              lowestHpRatio = ratio;
+              target = u;
+            }
+          }
+        });
+        
+        if (target) {
+          const healingRate = target.cost > 0 ? (target.maxHp / target.cost) * builder.build_metal_rate : 50;
+          const healingAmount = healingRate * tick;
+          target.hp = Math.min(target.maxHp, target.hp + healingAmount);
+          
+          builder.firingAt = target.id;
+          builder.fires.push({ 
+            targetId: target.id, 
+            wpnName: langVal === 'ru' ? 'Ремонт' : 'Repair', 
+            range: buildRange, 
+            expireTime: time + 0.3,
+            isRepair: true 
+          });
+        }
+      });
+    };
+
+    runRepairForTeam(aList, aList);
+    runRepairForTeam(bList, bList);
     
-    // 3. Process damage queue
     damageQueue.forEach(event => {
-      if (time >= event.applyTime) {
+      if (time >= event.applyTime && !event.intercepted) {
         const enemyList = event.team === 'A' ? bList : aList;
         const target = enemyList.find(u => u.id === event.targetId);
         if (target && target.hp > 0) {
           target.hp -= event.damage;
           
-          // Apply splash damage
           if (event.splashRadius > 0 && event.splashDamage > 0) {
             enemyList.forEach(u => {
               if (u.id !== target.id && u.hp > 0) {
@@ -499,7 +687,7 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
         }
       }
     });
-    damageQueue = damageQueue.filter(event => time < event.applyTime);
+    damageQueue = damageQueue.filter(event => time < event.applyTime && !event.intercepted);
     
     const deadB = bList.filter(t => t.hp <= 0);
     const deadA = aList.filter(t => t.hp <= 0);
@@ -548,7 +736,7 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
           bHp: bList.reduce((sum, u) => sum + u.hp, 0),
           aUnits: aList.map(u => ({ id: u.id, name: u.name, icon: u.icon, hp: u.hp, maxHp: u.maxHp, x: u.x, y: u.y || 0, firingAt: u.firingAt, fires: u.fires || [], maxRange: u.maxRange, visionRadius: u.visionRadius, radarRadius: u.radarRadius, weapons: u.weapons ? u.weapons.map(w => ({ name: w.name, range: w.range })) : [] })),
           bUnits: bList.map(u => ({ id: u.id, name: u.name, icon: u.icon, hp: u.hp, maxHp: u.maxHp, x: u.x, y: u.y || 0, firingAt: u.firingAt, fires: u.fires || [], maxRange: u.maxRange, visionRadius: u.visionRadius, radarRadius: u.radarRadius, weapons: u.weapons ? u.weapons.map(w => ({ name: w.name, range: w.range })) : [] })),
-          projectiles: damageQueue.map(p => {
+          projectiles: damageQueue.filter(p => !p.intercepted).map(p => {
             const duration = p.applyTime - p.spawnTime;
             const elapsed = time - p.spawnTime;
             const progress = duration > 0 ? Math.min(1, Math.max(0, elapsed / duration)) : 1;
@@ -663,6 +851,7 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
       hpLeft: Math.round(currentHpA),
       maxHp: totalMaxHpA,
       unitsLeft: aList.length,
+      pagePercent: Math.round((currentHpA / totalMaxHpA) * 100),
       hpPercent: Math.round((currentHpA / totalMaxHpA) * 100),
       detailedUnits: detailedA
     },
@@ -674,6 +863,7 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
       hpLeft: Math.round(currentHpB),
       maxHp: totalMaxHpB,
       unitsLeft: bList.length,
+      pagePercent: Math.round((currentHpB / totalMaxHpB) * 100),
       hpPercent: Math.round((currentHpB / totalMaxHpB) * 100),
       detailedUnits: detailedB
     },

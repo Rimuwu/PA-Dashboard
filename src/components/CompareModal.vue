@@ -15,6 +15,14 @@ const props = defineProps({
 });
 
 defineEmits(['close']);
+
+const getCategoryColor = (cat) => {
+  if (cat === 'land') return { bg: 'rgba(234, 179, 8, 0.15)', fg: '#fef08a' };
+  if (cat === 'air') return { bg: 'rgba(6, 182, 212, 0.15)', fg: '#a5f3fc' };
+  if (cat === 'sea') return { bg: 'rgba(59, 130, 246, 0.15)', fg: '#bfdbfe' };
+  if (cat === 'orbital') return { bg: 'rgba(168, 85, 247, 0.15)', fg: '#e9d5ff' };
+  return { bg: 'rgba(255,255,255,0.06)', fg: '#cbd5e1' };
+};
 </script>
 
 <template>
@@ -32,10 +40,26 @@ defineEmits(['close']);
           <thead>
             <tr>
               <th style="text-align: left;">{{ lang === 'ru' ? 'Характеристика' : 'Spec / Stat' }}</th>
-              <th v-for="id in compareUnitIds" :key="id" style="min-width: 150px;">
-                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                  <img :src="getUnitById(id)?.icon" style="width: 32px; height: 32px; object-fit: contain;" />
-                  <span style="font-size: 0.72rem; color: #fff; line-height: 1.2;">{{ t('unit_name_' + id) }}</span>
+              <th v-for="id in compareUnitIds" :key="id" style="min-width: 170px; padding: 12px 6px; text-align: center;">
+                <div class="compare-unit-header-card" style="display: flex; flex-direction: column; align-items: center; gap: 8px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 12px 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2); transition: border-color 0.2s; position: relative;">
+                  <span 
+                    class="category-badge" 
+                    :style="{
+                      fontSize: '0.55rem',
+                      textTransform: 'uppercase',
+                      padding: '1px 5px',
+                      borderRadius: '3px',
+                      fontWeight: 'bold',
+                      background: getCategoryColor(getUnitById(id)?.category).bg,
+                      color: getCategoryColor(getUnitById(id)?.category).fg
+                    }"
+                  >
+                    {{ t(getUnitById(id)?.category || 'unknown') }}
+                  </span>
+                  <img :src="getUnitById(id)?.icon" style="width: 48px; height: 48px; object-fit: contain; filter: drop-shadow(0 0 4px rgba(255,255,255,0.1));" />
+                  <span style="font-family: var(--font-title); font-size: 0.78rem; font-weight: bold; color: #fff; line-height: 1.2; text-align: center; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; height: 28px;">
+                    {{ t('unit_name_' + id) }}
+                  </span>
                 </div>
               </th>
             </tr>

@@ -49,6 +49,7 @@ import {
   ArrowDown,
   Zap,
   Settings,
+  StickyNote,
   FileText,
   Palette,
   Target,
@@ -82,6 +83,8 @@ const activeTargetFilters = ref([]); // e.g. ['land', 'air']
 const activeTierFilters = ref([]);   // e.g. ['T1', 'T2']
 const filtersCollapsed = ref(false);
 const collapsedFilterGroups = ref({
+  category: false,
+  subFilter: false,
   target: false,
   tier: false,
   factory: false,
@@ -92,6 +95,11 @@ const sidebarSortBy = ref('default');
 const sidebarSortOrder = ref('desc');
 const activeTagFilters = ref([]);
 const selectedFactoryFilter = ref('all');
+
+const activeFlightTypeDropdown = ref(null);
+const toggleFlightTypeDropdown = (type) => {
+  activeFlightTypeDropdown.value = activeFlightTypeDropdown.value === type ? null : type;
+};
 
 const toggleTargetFilter = (id) => {
   const idx = activeTargetFilters.value.indexOf(id);
@@ -271,6 +279,40 @@ const getUnitMetalStats = (unit) => {
     metalProd,
     metalCons
   };
+};
+
+const getCardHeight = (card) => {
+  const spec = getUnitById(card.unitId);
+  if (!spec) return 240;
+  
+  let h = 240; // Base height for normal units
+  
+  const energyStats = getUnitEnergyStats(spec);
+  const metalStats = getUnitMetalStats(spec);
+  
+  const energyProd = energyStats?.energyProd || 0;
+  const energyCons = energyStats?.energyCons || 0;
+  const metalProd = metalStats?.metalProd || 0;
+  const metalCons = metalStats?.metalCons || 0;
+  const buildMetalRate = spec.build_metal_rate || 0;
+  const isCmd = spec.category === 'commander' || spec.id?.includes('commander');
+  const isBuilder = spec.is_builder || false;
+  
+  if (energyProd > 0) h += 20;
+  if (energyCons > 0) h += 20;
+  if (metalProd > 0) h += 20;
+  if (metalCons > 0) h += 20;
+  if (buildMetalRate > 0) h += 20;
+  
+  if (isCmd || isBuilder) {
+    h += 42;
+  }
+  
+  if (card.showFactoryMenu) {
+    h += 120;
+  }
+  
+  return h;
 };
 
 const getColumnMetalProd = (colId) => {
@@ -560,6 +602,281 @@ const placedUnits = ref([]);
 const groupAreas = ref([]);
 const connections = ref([]);
 
+// Notes on canvas
+const notes = ref([]);
+const activeDragNote = ref(null);
+const dragNoteOffset = ref({ x: 0, y: 0 });
+
+const getDefaultNotes = () => {
+  let cx = 25000;
+  let cy = 25000;
+  
+  if (canvasRef.value) {
+    const rect = canvasRef.value.getBoundingClientRect();
+    cx = (rect.width / 2 - canvasOffset.value.x) / canvasZoom.value + 25000;
+    cy = (rect.height / 2 - canvasOffset.value.y) / canvasZoom.value + 25000;
+  }
+  
+  const note1X = cx - 340;
+  const note2X = cx + 20;
+  const noteY = cy - 90;
+  
+  return [
+    {
+      uuid: 'default-note-ru',
+      x: snapToGrid.value ? Math.round(note1X / 40) * 40 : note1X,
+      y: snapToGrid.value ? Math.round(noteY / 40) * 40 : noteY,
+      width: 320,
+      height: 180,
+      text: "# Понравился проект?\nПожалуйста, поставьте ⭐ [звезду на GitHub](https://github.com/Rimuwu/PA-Dashboard)!\nЭто очень поможет развитию проекта.",
+      color: 'rgba(22, 78, 99, 0.45)', // Cyan glassmorphism
+      zIndex: 10,
+      isEditing: false
+    },
+    {
+      uuid: 'default-note-en',
+      x: snapToGrid.value ? Math.round(note2X / 40) * 40 : note2X,
+      y: snapToGrid.value ? Math.round(noteY / 40) * 40 : noteY,
+      width: 320,
+      height: 180,
+      text: "# Like the project?\nPlease leave a ⭐ [star on GitHub](https://github.com/Rimuwu/PA-Dashboard)!\nIt really helps the project grow.",
+      color: 'rgba(99, 22, 78, 0.45)', // Magenta glassmorphism
+      zIndex: 10,
+      isEditing: false
+    }
+  ];
+};
+
+const parseMarkdown = (md) => {
+  if (!md) return '';
+  let html = md
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  
+  html = html.replace(/^# (.*?)$/gm, '<h1>$1</h1>');
+  html = html.replace(/^## (.*?)$/gm, '<h2>$1</h2>');
+  html = html.replace(/^### (.*?)$/gm, '<h3>$1</h3>');
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  html = html.replace(/_(.*?)_/g, '<em>$1</em>');
+  html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="markdown-link">$1</a>');
+  html = html.replace(/^\s*-\s+(.*?)$/gm, '<li>$1</li>');
+  html = html.replace(/\n/g, '<br>');
+  return html;
+};
+
+const getFlightTypeExplanation = (type) => {
+  if (!type) return '';
+  const t = type.toLowerCase();
+  if (lang.value === 'ru') {
+    if (t === 'direct') return 'Стреляет по прямой линии. Быстрая доставка снаряда, но траектория может блокироваться рельефом, стенами и другими объектами.';
+    if (t === 'ballistic') return 'Стреляет по дуге. Позволяет перестреливать через стены и холмы, но время полета снаряда больше.';
+    if (t === 'seeking') return 'Самонаводящиеся ракеты, преследующие цель. Отличная точность, но могут быть перехвачены средствами ПРО/ПВО (например, Angel).';
+    if (t === 'staged') return 'Ракеты с многоступенчатым разгоном. Обладают огромной дальностью и уроном, но имеют долгий запуск и могут быть перехвачены.';
+  } else {
+    if (t === 'direct') return 'Fires in a straight line. Fast projectile delivery, but trajectory can be blocked by terrain, walls, and other structures.';
+    if (t === 'ballistic') return 'Fires in a ballistic arc. Allows shooting over walls and hills, but travel time is longer.';
+    if (t === 'seeking') return 'Homing missiles that track the target. Perfect accuracy, but can be intercepted by missile defense systems (like the Angel).';
+    if (t === 'staged') return 'Staged rocket launch. Long range and high damage, but has a slow startup and can be intercepted.';
+  }
+  return '';
+};
+
+const addNewNote = () => {
+  pushToUndoStack();
+  const id = generateUuid();
+  const rect = canvasRef.value ? canvasRef.value.getBoundingClientRect() : { width: 1000, height: 600 };
+  const centerX = (rect.width / 2 - canvasOffset.value.x) / canvasZoom.value - 160 + 25000;
+  const centerY = (rect.height / 2 - canvasOffset.value.y) / canvasZoom.value - 90 + 25000;
+  
+  notes.value.push({
+    uuid: id,
+    x: snapToGrid.value ? Math.round(centerX / 40) * 40 : centerX,
+    y: snapToGrid.value ? Math.round(centerY / 40) * 40 : centerY,
+    width: 320,
+    height: 180,
+    text: '',
+    color: 'rgba(255, 255, 255, 0.08)',
+    zIndex: Math.max(...notes.value.map(n => n.zIndex || 10), 10) + 1,
+    isEditing: true
+  });
+  saveToLocalStorage();
+  
+  nextTick(() => {
+    const textareas = document.querySelectorAll('.note-textarea');
+    if (textareas.length > 0) {
+      textareas[textareas.length - 1].focus();
+    }
+  });
+};
+
+const editNote = (note) => {
+  if (note.uuid === 'default-note-ru' || note.uuid === 'default-note-en') return;
+  note.isEditing = true;
+  nextTick(() => {
+    const textareas = document.querySelectorAll('.note-textarea');
+    textareas.forEach(ta => {
+      if (ta.value === note.text) {
+        ta.focus();
+      }
+    });
+  });
+};
+
+const deleteNote = (noteUuid) => {
+  if (noteUuid === 'default-note-ru' || noteUuid === 'default-note-en') return;
+  pushToUndoStack();
+  notes.value = notes.value.filter(n => n.uuid !== noteUuid);
+  saveToLocalStorage();
+};
+
+const addNewNoteAt = (canvasX, canvasY) => {
+  pushToUndoStack();
+  const id = generateUuid();
+  notes.value.push({
+    uuid: id,
+    x: snapToGrid.value ? Math.round(canvasX / 40) * 40 : canvasX,
+    y: snapToGrid.value ? Math.round(canvasY / 40) * 40 : canvasY,
+    width: 320,
+    height: 180,
+    text: '',
+    color: 'rgba(255, 255, 255, 0.08)',
+    zIndex: Math.max(...notes.value.map(n => n.zIndex || 10), 10) + 1,
+    isEditing: true
+  });
+  saveToLocalStorage();
+  
+  nextTick(() => {
+    const textareas = document.querySelectorAll('.note-textarea');
+    if (textareas.length > 0) {
+      textareas[textareas.length - 1].focus();
+    }
+  });
+};
+
+const insertFormatting = (noteUuid, type) => {
+  const note = notes.value.find(n => n.uuid === noteUuid);
+  if (!note) return;
+  
+  pushToUndoStack();
+  
+  let snippet = '';
+  switch (type) {
+    case 'h1': snippet = "\n# Заголовок\n"; break;
+    case 'h2': snippet = "\n## Подзаголовок\n"; break;
+    case 'bold': snippet = " **жирный текст** "; break;
+    case 'italic': snippet = " *курсив* "; break;
+    case 'list': snippet = "\n- Элемент списка\n"; break;
+    case 'link': snippet = " [ссылка](https://github.com/Rimuwu/PA-Dashboard) "; break;
+  }
+  
+  if (lang.value !== 'ru') {
+    switch (type) {
+      case 'h1': snippet = "\n# Heading\n"; break;
+      case 'h2': snippet = "\n## Subheading\n"; break;
+      case 'bold': snippet = " **bold text** "; break;
+      case 'italic': snippet = " *italic text* "; break;
+      case 'list': snippet = "\n- List item\n"; break;
+      case 'link': snippet = " [link](https://github.com/Rimuwu/PA-Dashboard) "; break;
+    }
+  }
+  
+  note.isEditing = true;
+  note.text = (note.text || '') + snippet;
+  saveToLocalStorage();
+  
+  nextTick(() => {
+    const textareas = document.querySelectorAll('.note-textarea');
+    textareas.forEach(ta => {
+      if (ta.value === note.text) {
+        ta.focus();
+        ta.setSelectionRange(ta.value.length, ta.value.length);
+      }
+    });
+  });
+};
+
+const onNoteContextMenu = (note, e) => {
+  if (note.uuid === 'default-note-ru' || note.uuid === 'default-note-en') return;
+  const rect = canvasRef.value.getBoundingClientRect();
+  const canvasX = (e.clientX - rect.left - canvasOffset.value.x) / canvasZoom.value + 25000;
+  const canvasY = (e.clientY - rect.top - canvasOffset.value.y) / canvasZoom.value + 25000;
+  
+  contextMenu.value = {
+    type: 'note',
+    uuid: note.uuid,
+    x: e.clientX,
+    y: e.clientY,
+    canvasX,
+    canvasY
+  };
+};
+
+const onNoteMousedown = (note, e) => {
+  if (note.uuid === 'default-note-ru' || note.uuid === 'default-note-en') {
+    if (e.button === 1) {
+      startPanning(e);
+    }
+    return;
+  }
+  if (e.target.closest('.note-delete-btn') || e.target.closest('.note-textarea') || e.target.closest('.note-resize-handle') || e.target.closest('.color-dot') || e.target.closest('.markdown-link')) {
+    if (e.button === 1) {
+      startPanning(e);
+    }
+    return;
+  }
+  if (e.button === 1) {
+    startPanning(e);
+    return;
+  }
+  if (e.button !== 0) return;
+  e.stopPropagation();
+  pushToUndoStack();
+  
+  const maxZ = Math.max(...notes.value.map(n => n.zIndex || 10), 10);
+  note.zIndex = maxZ + 1;
+  
+  activeDragNote.value = note;
+  
+  const rect = canvasRef.value.getBoundingClientRect();
+  const mouseCanvasX = (e.clientX - rect.left - canvasOffset.value.x) / canvasZoom.value + 25000;
+  const mouseCanvasY = (e.clientY - rect.top - canvasOffset.value.y) / canvasZoom.value + 25000;
+  
+  dragNoteOffset.value = {
+    x: mouseCanvasX - note.x,
+    y: mouseCanvasY - note.y
+  };
+};
+
+const startResizeNote = (note, e) => {
+  e.stopPropagation();
+  e.preventDefault();
+  pushToUndoStack();
+  const startWidth = note.width || 320;
+  const startHeight = note.height || 180;
+  const startX = e.clientX;
+  const startY = e.clientY;
+  
+  const onMouseMove = (moveEvent) => {
+    const dx = (moveEvent.clientX - startX) / canvasZoom.value;
+    const dy = (moveEvent.clientY - startY) / canvasZoom.value;
+    const newWidth = Math.max(150, startWidth + dx);
+    const newHeight = Math.max(100, startHeight + dy);
+    note.width = snapToGrid.value ? Math.round(newWidth / 40) * 40 : newWidth;
+    note.height = snapToGrid.value ? Math.round(newHeight / 40) * 40 : newHeight;
+  };
+  
+  const onMouseUp = () => {
+    window.removeEventListener('mousemove', onMouseMove);
+    window.removeEventListener('mouseup', onMouseUp);
+    saveToLocalStorage();
+  };
+  
+  window.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('mouseup', onMouseUp);
+};
+
 // Drag & drop state from sidebar
 const draggedUnit = ref(null);
 
@@ -598,6 +915,7 @@ const pushToUndoStack = () => {
   undoStack.value.push(JSON.stringify({
     placedUnits: placedUnits.value,
     groupAreas: groupAreas.value,
+    notes: notes.value,
     connections: connections.value
   }));
   if (undoStack.value.length > 50) {
@@ -612,6 +930,7 @@ const undoLastAction = () => {
     const data = JSON.parse(raw);
     placedUnits.value = data.placedUnits || [];
     groupAreas.value = data.groupAreas || [];
+    notes.value = data.notes || [];
     connections.value = data.connections || [];
     selectedCardUuids.value = [];
     calculateAllBattles();
@@ -865,6 +1184,9 @@ const updateTrackWidth = () => {
 };
 onMounted(() => {
   window.addEventListener('resize', updateTrackWidth);
+  window.addEventListener('click', () => {
+    activeFlightTypeDropdown.value = null;
+  });
 });
 
 // Get absolute horizontal X coordinate in SVG viewBox space
@@ -1326,6 +1648,12 @@ const panCanvas = (e) => {
     
     activeDragTimeline.value.x = snapToGrid.value ? Math.round(rawX / 40) * 40 : rawX;
     activeDragTimeline.value.y = snapToGrid.value ? Math.round(rawY / 40) * 40 : rawY;
+  } else if (activeDragNote.value) {
+    const rawX = mouseCanvasX - dragNoteOffset.value.x;
+    const rawY = mouseCanvasY - dragNoteOffset.value.y;
+    
+    activeDragNote.value.x = snapToGrid.value ? Math.round(rawX / 40) * 40 : rawX;
+    activeDragNote.value.y = snapToGrid.value ? Math.round(rawY / 40) * 40 : rawY;
   }
 };
 
@@ -1372,6 +1700,7 @@ const stopPanning = () => {
   activeDragCard.value = null;
   activeDragArea.value = null;
   activeDragTimeline.value = null;
+  activeDragNote.value = null;
   activeConnectionDrag.value = null;
   isResizingArea.value = false;
   saveToLocalStorage(); // save final positions on drag end
@@ -1644,7 +1973,7 @@ const calculateCounterRatings = async () => {
     // Exclude self-unit types from candidates
     const selfUnitIds = new Set(combatants.map(u => u.unitId));
     
-    const candidates = unitsData.filter(u => {
+    const unitCandidates = unitsData.filter(u => {
       const isMobile = u.unit_types?.includes('UNITTYPE_Mobile');
       const isStructure = u.unit_types?.includes('UNITTYPE_Structure');
       const isCmd = u.category === 'commander' || u.id.includes('commander');
@@ -1653,19 +1982,32 @@ const calculateCounterRatings = async () => {
       if (!isMobile || isStructure || isCmd || !hasWeapon || u.cost <= 0 || isSelf) {
         return false;
       }
-      // Only include candidates that can target at least one of our combatants
       return u.weapons.some(wpn => 
         combatants.some(target => canTargetLayer(wpn.target_layers, target.layers))
       );
     });
 
-    // Check if pregenerated cache has the best counter for a single-unit node
-    const allUnitIds = combatants.map(u => u.unitId);
-    const cachedBestId = allUnitIds.length === 1 ? hardestCountersCache[allUnitIds[0]]?.bestCounterId : null;
+    const buildingCandidates = unitsData.filter(u => {
+      const isStructure = u.unit_types?.includes('UNITTYPE_Structure');
+      const hasWeapon = u.weapons && u.weapons.length > 0;
+      const isSelf = selfUnitIds.has(u.id);
+      if (!isStructure || !hasWeapon || u.cost <= 0 || isSelf) {
+        return false;
+      }
+      return u.weapons.some(wpn => 
+        combatants.some(target => canTargetLayer(wpn.target_layers, target.layers))
+      );
+    });
+
+    // Check if pregenerated cache has the best counter for a single-unit node with count=1
+    const isSingleUnitAndCount1 = combatants.length === 1 && combatants[0].count === 1;
+    const cachedBestId = isSingleUnitAndCount1 ? hardestCountersCache[combatants[0].unitId]?.bestCounterId : null;
+    const cachedData = isSingleUnitAndCount1 ? hardestCountersCache[combatants[0].unitId] : null;
+    let localizedRatings = [];
+    let finalCandidates = [];
     
-    const cachedData = allUnitIds.length === 1 ? hardestCountersCache[allUnitIds[0]] : null;
     if (cachedData && cachedData.ratings) {
-      const localizedRatings = cachedData.ratings.map(item => {
+      localizedRatings = cachedData.ratings.map(item => {
         let resultLabel = item.resultLabel;
         if (lang.value === 'ru') {
           if (resultLabel.startsWith('Wins')) {
@@ -1675,19 +2017,26 @@ const calculateCounterRatings = async () => {
             resultLabel = 'Не побеждает';
           }
         }
+        const spec = getUnitById(item.unitId);
+        const isStr = spec?.unit_types?.includes('UNITTYPE_Structure') || false;
         return {
           ...item,
-          resultLabel
+          resultLabel,
+          isStructure: isStr
         };
       });
+      // In cached mode, the cache already contains both units and buildings pregenerated
+      finalCandidates = [];
       counterRatings.value = localizedRatings;
-      counterRatingsLoading.value = false;
-      return;
+      counterRatingsLoading.value = false; // Show cached units table immediately!
+    } else {
+      // In non-cached mode, we calculate both units and building candidates
+      finalCandidates = [...unitCandidates, ...buildingCandidates];
     }
     
-    const ratings = [];
+    const ratings = [...localizedRatings];
     
-    for (let i = 0; i < candidates.length; i++) {
+    for (let i = 0; i < finalCandidates.length; i++) {
       // Yield to keep UI responsive
       if (i > 0 && i % 3 === 0) {
         await new Promise(resolve => setTimeout(resolve, 0));
@@ -1698,7 +2047,7 @@ const calculateCounterRatings = async () => {
         return;
       }
       
-      const candidate = candidates[i];
+      const candidate = finalCandidates[i];
       const { count: minCount, sim } = findMinWinningCount(node, candidate.id);
       
       let score = 0;
@@ -1734,12 +2083,14 @@ const calculateCounterRatings = async () => {
         spawnCount: minCount,
         resultLabel,
         resultClass,
-        score: Math.round(score)
+        score: Math.round(score),
+        isStructure: candidate.unit_types?.includes('UNITTYPE_Structure') || false
       });
+
+      // Update ratings live
+      const sorted = [...ratings].sort((a, b) => b.score - a.score);
+      counterRatings.value = sorted;
     }
-    
-    ratings.sort((a, b) => b.score - a.score);
-    counterRatings.value = ratings;
   } finally {
     counterRatingsLoading.value = false;
   }
@@ -2106,6 +2457,7 @@ const clearBoard = () => {
     connections.value = [];
     timelinePanels.value = [];
     selectedCardUuids.value = [];
+    notes.value = getDefaultNotes();
     saveToLocalStorage();
   }
 };
@@ -2115,6 +2467,7 @@ const saveToFile = () => {
   const dataStr = JSON.stringify({
     placedUnits: placedUnits.value,
     groupAreas: groupAreas.value,
+    notes: notes.value,
     connections: connections.value,
     timelinePanels: timelinePanels.value
   }, null, 2);
@@ -2147,6 +2500,7 @@ const triggerFileInput = () => {
           pushToUndoStack();
           placedUnits.value = data.placedUnits;
           groupAreas.value = Array.isArray(data.groupAreas) ? data.groupAreas : [];
+          notes.value = Array.isArray(data.notes) ? data.notes : getDefaultNotes();
           connections.value = Array.isArray(data.connections) ? data.connections : [];
           timelinePanels.value = Array.isArray(data.timelinePanels) ? data.timelinePanels : [];
           selectedCardUuids.value = [];
@@ -2189,6 +2543,7 @@ const saveToLocalStorage = () => {
   localStorage.setItem('pa_canvas_layout_data', JSON.stringify({
     placedUnits: placedUnits.value,
     groupAreas: groupAreas.value,
+    notes: notes.value,
     timelinePanels: timelinePanels.value,
     connections: connections.value,
     canvasOffset: canvasOffset.value,
@@ -2208,6 +2563,11 @@ const loadFromLocalStorage = () => {
       const data = JSON.parse(raw);
       if (Array.isArray(data.placedUnits)) placedUnits.value = data.placedUnits;
       if (Array.isArray(data.groupAreas)) groupAreas.value = data.groupAreas;
+      if (Array.isArray(data.notes)) {
+        notes.value = data.notes;
+      } else {
+        notes.value = getDefaultNotes();
+      }
       if (Array.isArray(data.timelinePanels)) timelinePanels.value = data.timelinePanels;
       if (Array.isArray(data.connections)) {
         connections.value = data.connections.map(c => {
@@ -2230,7 +2590,10 @@ const loadFromLocalStorage = () => {
       if (data.simSettings) simSettings.value = { ...simSettings.value, ...data.simSettings };
     } catch (e) {
       console.error("Failed to load layout from local storage:", e);
+      notes.value = getDefaultNotes();
     }
+  } else {
+    notes.value = getDefaultNotes();
   }
 };
 
@@ -2336,6 +2699,15 @@ const startAnimatedSim = () => {
     clearInterval(animSim.value.intervalId);
   }
   
+  if (animSim.value.done || animSim.value.currentTickIndex >= animSim.value.sim.ticks.length) {
+    animSim.value.currentTickIndex = 0;
+    animSim.value.displayedLog = [];
+    animSim.value.done = false;
+    animSim.value.aHpCur = animSim.value.sim.totalMaxHpA;
+    animSim.value.bHpCur = animSim.value.sim.totalMaxHpB;
+    animSim.value.simTimeCur = 0;
+  }
+  
   animSim.value.isPlaying = true;
   animSim.value.done = false;
   
@@ -2402,6 +2774,7 @@ const setPlaybackSpeed = (speed) => {
   simSettings.value.playbackSpeed = speed;
   saveToLocalStorage();
   if (animSim.value) {
+    animSim.value.playbackSpeed = speed;
     if (animSim.value.isPlaying) {
       clearInterval(animSim.value.intervalId);
       
@@ -2564,20 +2937,35 @@ const groupSelectedIntoArea = () => {
     if (c.x < minX) minX = c.x;
     if (c.x + CARD_WIDTH > maxX) maxX = c.x + CARD_WIDTH;
     if (c.y < minY) minY = c.y;
-    if (c.y + CARD_HEIGHT > maxY) maxY = c.y + CARD_HEIGHT;
+    const ch = getCardHeight(c);
+    if (c.y + ch > maxY) maxY = c.y + ch;
   });
   
-  const padding = 40;
-  const x = minX - padding;
-  const y = minY - padding;
-  const w = (maxX - minX) + padding * 2;
-  const h = (maxY - minY) + padding * 2;
+  const paddingX = 40;
+  const paddingY = 60; // Extra top and bottom margin to accommodate header title and card height bounds nicely
+  
+  let x = minX - paddingX;
+  let y = minY - paddingY;
+  let w = (maxX - minX) + paddingX * 2;
+  let h = (maxY - minY) + paddingY * 2;
+  
+  if (snapToGrid.value) {
+    const snapX = Math.floor(x / 40) * 40;
+    const snapY = Math.floor(y / 40) * 40;
+    const snapMaxX = Math.ceil((x + w) / 40) * 40;
+    const snapMaxY = Math.ceil((y + h) / 40) * 40;
+    
+    x = snapX;
+    y = snapY;
+    w = snapMaxX - snapX;
+    h = snapMaxY - snapY;
+  }
   
   groupAreas.value.push({
     uuid: generateUuid(),
     name: lang.value === 'ru' ? `Группа ${groupAreas.value.length + 1}` : `Group ${groupAreas.value.length + 1}`,
-    x: snapToGrid.value ? Math.round(x / 40) * 40 : x,
-    y: snapToGrid.value ? Math.round(y / 40) * 40 : y,
+    x,
+    y,
     width: Math.max(300, w),
     height: Math.max(200, h),
     isEditingName: false
@@ -3064,12 +3452,13 @@ onMounted(() => {
   window.addEventListener('keydown', handleKeyDown);
 });
 
-watch([placedUnits, groupAreas, connections], () => {
+watch([placedUnits, groupAreas, notes, connections], () => {
   if (
     isPanning.value ||
     isSelecting.value ||
     activeDragCard.value ||
     activeDragArea.value ||
+    activeDragNote.value ||
     activeConnectionDrag.value ||
     canvasDragState.value ||
     isResizingArea.value
@@ -3166,36 +3555,55 @@ const vFocus = {
 
       </div>
       
-      <!-- Category Grid -->
-      <div class="category-grid" v-show="!filtersCollapsed">
-        <button 
-          v-for="cat in categories" 
-          :key="cat.id"
-          @click="selectedCategory = cat.id"
-          :class="['category-card', { active: selectedCategory === cat.id }]"
-        >
-          <component :is="getCategoryIcon(cat.id)" class="category-icon" />
-          <span class="category-label">{{ t(cat.id) }}</span>
-        </button>
+      <!-- Category Grid (Categories) -->
+      <div class="sub-filters-container filter-group-block" v-show="!filtersCollapsed">
+        <div class="filter-group-label collapsible-header" @click="collapsedFilterGroups.category = !collapsedFilterGroups.category">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <LayoutGrid :size="11" />
+            {{ lang === 'ru' ? 'Категории' : 'Categories' }}
+          </div>
+          <ChevronDown :size="12" :style="{ transform: collapsedFilterGroups.category ? 'rotate(-90deg)' : 'none', transition: 'transform 0.2s' }" />
+        </div>
+        <div class="category-grid" v-show="!collapsedFilterGroups.category" style="margin-top: 6px;">
+          <button 
+            v-for="cat in categories" 
+            :key="cat.id"
+            @click="selectedCategory = cat.id"
+            :class="['category-card', { active: selectedCategory === cat.id }]"
+          >
+            <component :is="getCategoryIcon(cat.id)" class="category-icon" />
+            <span class="category-label">{{ t(cat.id) }}</span>
+          </button>
+        </div>
       </div>
 
-      <!-- Sub filter selectors -->
-      <div class="sub-filters-container" v-show="!filtersCollapsed">
-        <button 
-          v-for="f in [
-            { id: 'all', label: t('all'), icon: LayoutGrid }, 
-            { id: 'structures', label: t('bldgs'), icon: Hammer }, 
-            { id: 'mobile', label: t('units'), icon: Activity }, 
-            { id: 'combat', label: t('combat'), icon: Crosshair },
-            { id: 'factories', label: t('factories'), icon: Factory }
-          ]"
-          :key="f.id"
-          @click="activeSubFilter = f.id"
-          :class="['sub-filter-chip', { active: activeSubFilter === f.id }]"
-        >
-          <component :is="f.icon" class="chip-icon" />
-          <span style="white-space: nowrap;">{{ f.label }}</span>
-        </button>
+      <!-- Sub filter selectors (Types) -->
+      <div class="sub-filters-container filter-group-block" v-show="!filtersCollapsed">
+        <div class="filter-group-label collapsible-header" @click="collapsedFilterGroups.subFilter = !collapsedFilterGroups.subFilter">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <Activity :size="11" />
+            {{ lang === 'ru' ? 'Тип объекта' : 'Object Type' }}
+          </div>
+          <ChevronDown :size="12" :style="{ transform: collapsedFilterGroups.subFilter ? 'rotate(-90deg)' : 'none', transition: 'transform 0.2s' }" />
+        </div>
+        <div class="filter-group-chips" v-show="!collapsedFilterGroups.subFilter" style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px;">
+          <button 
+            v-for="f in [
+              { id: 'all', label: t('all'), icon: LayoutGrid }, 
+              { id: 'structures', label: t('bldgs'), icon: Hammer }, 
+              { id: 'mobile', label: t('units'), icon: Activity }, 
+              { id: 'combat', label: t('combat'), icon: Crosshair },
+              { id: 'factories', label: t('factories'), icon: Factory }
+            ]"
+            :key="f.id"
+            @click="activeSubFilter = f.id"
+            :class="['sub-filter-chip', { active: activeSubFilter === f.id }]"
+            style="flex: 1 1 calc(50% - 6px); justify-content: center;"
+          >
+            <component :is="f.icon" class="chip-icon" />
+            <span style="white-space: nowrap;">{{ f.label }}</span>
+          </button>
+        </div>
       </div>
 
       <!-- Target Filter (Кого атакуют) — multi-select -->
@@ -3824,6 +4232,67 @@ const vFocus = {
             ></div>
           </div>
 
+          <!-- Notes -->
+          <div 
+            v-for="note in notes" 
+            :key="note.uuid"
+            class="sticky-note"
+            :style="{
+              left: `${note.x}px`,
+              top: `${note.y}px`,
+              width: `${note.width || 320}px`,
+              height: `${note.height || 180}px`,
+              zIndex: note.zIndex || 10
+            }"
+            @mousedown="onNoteMousedown(note, $event)"
+            @contextmenu.prevent.stop="onNoteContextMenu(note, $event)"
+          >
+            <!-- Note Header -->
+            <div class="note-header" :style="{ background: note.color || 'rgba(255, 255, 255, 0.08)' }">
+              <!-- Color controls -->
+              <div class="note-colors" v-if="note.uuid !== 'default-note-ru' && note.uuid !== 'default-note-en'">
+                <span 
+                  v-for="c in ['rgba(255,255,255,0.08)', 'rgba(22,78,99,0.45)', 'rgba(99,22,78,0.45)', 'rgba(20,83,45,0.45)', 'rgba(120,53,4,0.45)']" 
+                  :key="c"
+                  class="color-dot"
+                  :style="{ background: c, border: (note.color === c || (!note.color && c === 'rgba(255,255,255,0.08)')) ? '1.5px solid var(--color-cyan)' : '1px solid rgba(255,255,255,0.2)' }"
+                  @mousedown.stop
+                  @click="note.color = c; saveToLocalStorage()"
+                ></span>
+              </div>
+              <button v-if="note.uuid !== 'default-note-ru' && note.uuid !== 'default-note-en'" class="note-delete-btn" @mousedown.stop @click="deleteNote(note.uuid)" :title="lang === 'ru' ? 'Удалить заметку' : 'Delete Note'">
+                <X :size="12" />
+              </button>
+            </div>
+            
+            <!-- Note Body -->
+            <div class="note-body" :style="{ background: note.color || 'rgba(255, 255, 255, 0.08)' }" @mousedown.stop>
+              <!-- Editing textarea -->
+              <textarea 
+                v-if="note.isEditing"
+                v-model="note.text"
+                class="note-textarea"
+                @blur="note.isEditing = false; saveToLocalStorage()"
+                @keydown.enter.ctrl="note.isEditing = false; saveToLocalStorage()"
+                placeholder="Markdown..."
+              ></textarea>
+              <!-- Rendered Markdown view -->
+              <div 
+                v-else
+                class="note-rendered"
+                @dblclick="editNote(note)"
+                v-html="parseMarkdown(note.text) || `<em style='color:var(--text-dim)'>${lang === 'ru' ? 'Дважды кликните для редактирования...' : 'Double click to edit...'}</em>`"
+              ></div>
+            </div>
+            
+            <!-- Note Resize Handle -->
+            <div 
+              v-if="note.uuid !== 'default-note-ru' && note.uuid !== 'default-note-en'"
+              class="note-resize-handle"
+              @mousedown="startResizeNote(note, $event)"
+            ></div>
+          </div>
+
           <!-- Timeline Panels -->
           <div 
             v-for="panel in timelinePanels" 
@@ -4165,6 +4634,10 @@ const vFocus = {
           <Clock :size="14" />
           {{ lang === 'ru' ? 'Создать временную панель' : 'Create Timeline Panel' }}
         </div>
+        <div class="context-menu-item" style="color: var(--color-orange);" @click="addNewNoteAt(contextMenu.canvasX, contextMenu.canvasY); closeContextMenu()">
+          <StickyNote :size="14" />
+          {{ lang === 'ru' ? 'Добавить заметку' : 'Add Note' }}
+        </div>
         <div class="context-menu-divider"></div>
         <div class="context-menu-item" @click="goToCenter(); closeContextMenu()">
           <Crosshair :size="14" />
@@ -4223,10 +4696,6 @@ const vFocus = {
 
       <!-- Area Context Options -->
       <template v-if="contextMenu.type === 'area'">
-        <div class="context-menu-item" style="color: var(--color-cyan);" @click="openCounterFinderModal(contextMenu.uuid); closeContextMenu()">
-          <Shield :size="14" />
-          {{ t('counterMatchmaker') }}
-        </div>
         <div class="context-menu-item" style="color: var(--color-cyan);" @click="compareAreaUnits(contextMenu.uuid); closeContextMenu()">
           <BarChart2 :size="14" />
           {{ t('compareSpecs') }}
@@ -4290,6 +4759,39 @@ const vFocus = {
         <div class="context-menu-item danger" @click="deleteSelectedCards(); closeContextMenu()">
           <Trash2 :size="14" />
           {{ t('deleteSelected') }}
+        </div>
+      </template>
+
+      <!-- Note Context Options -->
+      <template v-if="contextMenu.type === 'note'">
+        <div class="context-menu-item" @click="insertFormatting(contextMenu.uuid, 'h1'); closeContextMenu()">
+          <span style="font-family: var(--font-title); font-size: 0.72rem; font-weight: bold; width: 14px; display: inline-block;">H1</span>
+          {{ lang === 'ru' ? 'Заголовок 1 (#)' : 'Header 1 (#)' }}
+        </div>
+        <div class="context-menu-item" @click="insertFormatting(contextMenu.uuid, 'h2'); closeContextMenu()">
+          <span style="font-family: var(--font-title); font-size: 0.72rem; font-weight: bold; width: 14px; display: inline-block;">H2</span>
+          {{ lang === 'ru' ? 'Заголовок 2 (##)' : 'Header 2 (##)' }}
+        </div>
+        <div class="context-menu-item" @click="insertFormatting(contextMenu.uuid, 'bold'); closeContextMenu()">
+          <strong style="width: 14px; display: inline-block; text-align: center;">B</strong>
+          {{ lang === 'ru' ? 'Жирный (**текст**)' : 'Bold (**text**)' }}
+        </div>
+        <div class="context-menu-item" @click="insertFormatting(contextMenu.uuid, 'italic'); closeContextMenu()">
+          <em style="width: 14px; display: inline-block; text-align: center;">I</em>
+          {{ lang === 'ru' ? 'Курсив (*текст*)' : 'Italic (*text*)' }}
+        </div>
+        <div class="context-menu-item" @click="insertFormatting(contextMenu.uuid, 'list'); closeContextMenu()">
+          <span style="width: 14px; display: inline-block; text-align: center;">•</span>
+          {{ lang === 'ru' ? 'Список (- пункт)' : 'List (- item)' }}
+        </div>
+        <div class="context-menu-item" @click="insertFormatting(contextMenu.uuid, 'link'); closeContextMenu()">
+          <ExternalLink :size="14" />
+          {{ lang === 'ru' ? 'Ссылка ([текст](url))' : 'Link ([text](url))' }}
+        </div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item danger" @click="deleteNote(contextMenu.uuid); closeContextMenu()">
+          <Trash2 :size="14" />
+          {{ t('deleteCard') }}
         </div>
       </template>
     </div>
@@ -4562,7 +5064,25 @@ const vFocus = {
                   <div>
                     <div style="font-family: var(--font-title); font-size: 1rem; font-weight: bold; color: #fff; margin-bottom: 2px;">{{ wpn.name }}</div>
                     <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-                      <span v-if="wpn.flight_type" class="flight-type-badge">{{ t('flight_type_' + wpn.flight_type.toLowerCase()) }}</span>
+                      <div class="flight-type-badge-container" style="position: relative; display: inline-block;">
+                        <span 
+                          v-if="wpn.flight_type" 
+                          class="flight-type-badge" 
+                          style="cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
+                          @click.stop="toggleFlightTypeDropdown(wpn.flight_type)"
+                        >
+                          {{ t('flight_type_' + wpn.flight_type.toLowerCase()) }}
+                          <Info :size="10" style="opacity: 0.8; vertical-align: middle; flex-shrink: 0;" />
+                        </span>
+                        <div 
+                          v-if="activeFlightTypeDropdown === wpn.flight_type" 
+                          class="explanation-dropdown"
+                          style="position: absolute; top: calc(100% + 6px); left: 0; z-index: 10000; width: 220px; background: #1e293b; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 8px 10px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5); font-size: 0.68rem; line-height: 1.3; color: var(--text-secondary); text-align: left; pointer-events: auto; white-space: normal;"
+                          @click.stop
+                        >
+                          {{ getFlightTypeExplanation(wpn.flight_type) }}
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <div style="text-align:right; flex-shrink:0; margin-left:12px;">

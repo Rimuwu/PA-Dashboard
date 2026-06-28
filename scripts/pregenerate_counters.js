@@ -97,16 +97,16 @@ const pregenerateAll = () => {
     const isMobile = u.unit_types?.includes('UNITTYPE_Mobile');
     const isStructure = u.unit_types?.includes('UNITTYPE_Structure');
     const isCmd = u.category === 'commander' || u.id.includes('commander');
-    const hasWeapon = u.weapons && u.weapons.length > 0;
-    return isMobile && !isStructure && !isCmd && hasWeapon && u.cost > 0;
+    const hasDamage = u.weapons && u.weapons.some(w => w.dps > 0 || w.damage > 0);
+    return (isMobile || isStructure) && !isCmd && hasDamage && u.cost > 0;
   });
   
   const combatUnits = unitsData.filter(unit => {
     const isMobile = unit.unit_types?.includes('UNITTYPE_Mobile');
     const isStructure = unit.unit_types?.includes('UNITTYPE_Structure');
     const isCmd = unit.category === 'commander' || unit.id.includes('commander');
-    const hasWeapon = unit.weapons && unit.weapons.length > 0;
-    return isMobile && !isStructure && !isCmd && hasWeapon && unit.cost > 0;
+    const hasDamage = unit.weapons && unit.weapons.some(w => w.dps > 0 || w.damage > 0);
+    return (isMobile || isStructure) && !isCmd && hasDamage && unit.cost > 0;
   });
   
   const total = combatUnits.length;

@@ -229,29 +229,29 @@ watch(() => props.animSim?.displayedLog?.length, () => {
               stroke-width="1"
             />
 
-            <!-- Fire lines: Team A shooting -->
+            <!-- Fire lines: Team A shooting/repairing -->
             <template v-for="u in currentTick.aUnits" :key="'fl-wrap-a-' + u.id">
               <line
                 v-for="(fire, fIdx) in (u.fires || (u.firingAt ? [{ targetId: u.firingAt }] : []))"
                 :key="'fl-a-' + u.id + '-' + fIdx"
-                class="bf2d-fire-line team-a"
+                :class="['bf2d-shot-line', fire.isRepair ? 'repair-line' : 'team-a']"
                 :x1="getSvgX(u.x)"
                 :y1="getSvgY(u.y || 0)"
-                :x2="getSvgX(currentTick.bUnits.find(b => b.id === fire.targetId)?.x ?? (u.x + 80))"
-                :y2="getSvgY(currentTick.bUnits.find(b => b.id === fire.targetId)?.y ?? 0)"
+                :x2="getSvgX(currentTick.aUnits.find(a => a.id === fire.targetId)?.x ?? currentTick.bUnits.find(b => b.id === fire.targetId)?.x ?? (u.x + 80))"
+                :y2="getSvgY(currentTick.aUnits.find(a => a.id === fire.targetId)?.y ?? currentTick.bUnits.find(b => b.id === fire.targetId)?.y ?? 0)"
                 stroke-width="1.5"
               />
             </template>
-            <!-- Fire lines: Team B shooting -->
+            <!-- Fire lines: Team B shooting/repairing -->
             <template v-for="u in currentTick.bUnits" :key="'fl-wrap-b-' + u.id">
               <line
                 v-for="(fire, fIdx) in (u.fires || (u.firingAt ? [{ targetId: u.firingAt }] : []))"
                 :key="'fl-b-' + u.id + '-' + fIdx"
-                class="bf2d-fire-line team-b"
+                :class="['bf2d-shot-line', fire.isRepair ? 'repair-line' : 'team-b']"
                 :x1="getSvgX(u.x)"
                 :y1="getSvgY(u.y || 0)"
-                :x2="getSvgX(currentTick.aUnits.find(a => a.id === fire.targetId)?.x ?? (u.x - 80))"
-                :y2="getSvgY(currentTick.aUnits.find(a => a.id === fire.targetId)?.y ?? 0)"
+                :x2="getSvgX(currentTick.aUnits.find(a => a.id === fire.targetId)?.x ?? currentTick.bUnits.find(b => b.id === fire.targetId)?.x ?? (u.x - 80))"
+                :y2="getSvgY(currentTick.aUnits.find(a => a.id === fire.targetId)?.y ?? currentTick.bUnits.find(b => b.id === fire.targetId)?.y ?? 0)"
                 stroke-width="1.5"
               />
             </template>

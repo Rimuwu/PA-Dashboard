@@ -15,6 +15,7 @@ defineEmits(['close', 'spawn']);
 
 const sortKey = ref('score');
 const sortDesc = ref(true);
+const showBuildings = ref(false);
 
 const columns = computed(() => [
   { key: 'name',        label: () => props.lang === 'ru' ? 'Юнит противника' : 'Enemy Unit', align: 'left' },
@@ -36,7 +37,18 @@ const toggleSort = (key) => {
 
 const sortedRatings = computed(() => {
   if (!props.counterRatings) return [];
-  const arr = [...props.counterRatings];
+  let arr = [...props.counterRatings];
+  
+  if (!showBuildings.value) {
+    arr = arr.filter(item => !item.isStructure);
+  } else {
+    const units = arr.filter(item => !item.isStructure);
+    const buildings = arr.filter(item => item.isStructure)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10);
+    arr = [...units, ...buildings];
+  }
+  
   arr.sort((a, b) => {
     let va = a[sortKey.value];
     let vb = b[sortKey.value];
@@ -78,61 +90,132 @@ const sortedRatings = computed(() => {
           </span>
         </div>
         <template v-else>
-          <div style="margin-bottom: 12px; font-size: 0.72rem; color: var(--text-dim); line-height: 1.4;">
-            {{ lang === 'ru' 
-              ? 'Рейтинг составляется на основе симуляций против вашего выбранного отряда (эквивалентно по стоимости). Дополнительные баллы даются за превосходство в УВС и меньшую стоимость самого юнита.' 
-              : 'Ratings are computed based on cost-equivalent simulations against your selected squad. Extra score is granted for superior DPS and lower unit metal cost.' }}
+          <div style="margin-bottom: 12px; font-size: 0.72rem; color: var(--text-dim); line-height: 1.4; display: flex; justify-content: space-between; align-items: center; gap: 16px;">
+            <div>
+              {{ lang === 'ru' 
+                ? 'Рейтинг составляется на основе симуляций против вашего выбранного отряда (эквивалентно по стоимости). Дополнительные баллы даются за превосходство в УВС и меньшую стоимость самого юнита.' 
+                : 'Ratings are computed based on cost-equivalent simulations against your selected squad. Extra score is granted for superior DPS and lower unit metal cost.' }}
+            </div>
+            <label style="display: flex; align-items: center; gap: 6px; white-space: nowrap; cursor: pointer; color: var(--color-cyan); user-select: none; font-weight: bold;">
+              <input type="checkbox" v-model="showBuildings" style="accent-color: var(--color-cyan); cursor: pointer;" />
+              {{ lang === 'ru' ? 'Показать оборонительные здания' : 'Show defensive structures' }}
+            </label>
           </div>
-          <table class="counter-table">
-            <thead>
-              <tr>
-                <th
-                  v-for="col in columns"
-                  :key="col.key"
-                  :style="{ textAlign: col.align, cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }"
-                  @click="toggleSort(col.key)"
-                >
-                  {{ col.label() }}
-                  <span style="margin-left: 4px; font-size: 0.65rem; opacity: 0.7;">
-                    <template v-if="sortKey === col.key">
-                      {{ sortDesc ? '▼' : '▲' }}
-                    </template>
-                    <template v-else>
-                      <span style="opacity: 0.3;">↕</span>
-                    </template>
+          <!-- Sort Toolbar -->
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 12px; align-items: center;">
+            <span style="font-size: 0.85rem; font-family: var(--font-title); font-weight: bold; color: var(--text-secondary); margin-right: 8px;">
+              {{ lang === 'ru' ? 'Сортировка:' : 'Sort by:' }}
+            </span>
+            <button 
+              v-for="col in columns" 
+              :key="col.key"
+              @click="toggleSort(col.key)"
+              class="btn"
+              :style="{
+                padding: '4px 10px',
+                fontSize: '0.8rem',
+                borderColor: sortKey === col.key ? 'var(--color-cyan)' : 'var(--border-dim)',
+                background: sortKey === col.key ? 'rgba(6, 182, 212, 0.1)' : 'transparent',
+                color: sortKey === col.key ? 'var(--color-cyan)' : 'var(--text-secondary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px'
+              }"
+            >
+              {{ col.label() }}
+              <span style="font-size: 0.7rem;">
+                <template v-if="sortKey === col.key">
+                  {{ sortDesc ? '▼' : '▲' }}
+                </template>
+                <template v-else>
+                  <span style="opacity: 0.3;">↕</span>
+                </template>
+              </span>
+            </button>
+          </div>
+
+          <!-- Cards Grid -->
+          <div class="counter-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
+            <div 
+              v-for="item in sortedRatings" 
+              :key="item.unitId"
+              class="counter-unit-card"
+              style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); transition: border-color 0.2s, background 0.2s; position: relative;"
+              :style="item.unitId === hardestUnitId ? 'border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.02);' : ''"
+            >
+              <!-- Card Header: Icon + Name -->
+              <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px;">
+                <img :src="item.icon" style="width: 48px; height: 48px; object-fit: contain; background: rgba(0,0,0,0.25); padding: 4px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); flex-shrink: 0;" />
+                <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1;">
+                  <span style="font-size: 0.95rem; font-weight: bold; color: #fff; font-family: var(--font-title); line-height: 1.2;">
+                    {{ t('unit_name_' + item.unitId) }}
                   </span>
-                </th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in sortedRatings" :key="item.unitId">
-                <td style="text-align: left; display: flex; align-items: center; gap: 8px;">
-                  <img :src="item.icon" style="width: 24px; height: 24px; object-fit: contain; background: rgba(0,0,0,0.2); padding: 2px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.05);" />
-                  <span style="font-weight: bold; color: #fff;">{{ t('unit_name_' + item.unitId) }}</span>
-                  <span v-if="item.unitId === hardestUnitId" 
-                    style="margin-left: 6px; font-size: 0.62rem; padding: 1px 4px; border-radius: 3px; background: rgba(239, 68, 68, 0.15); border: 1px solid var(--color-red); color: var(--color-red); font-family: var(--font-title); font-weight: bold; text-transform: uppercase;"
-                  >
-                    {{ lang === 'ru' ? 'СИЛЬНЕЙШИЙ КОНТРПИК' : 'BEST COUNTER' }}
+                  <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px;">
+                    <span v-if="item.unitId === hardestUnitId" 
+                      style="font-size: 0.65rem; padding: 1px 5px; border-radius: 3px; background: rgba(239, 68, 68, 0.15); border: 1px solid var(--color-red); color: var(--color-red); font-family: var(--font-title); font-weight: bold; text-transform: uppercase;"
+                    >
+                      {{ lang === 'ru' ? 'СИЛЬНЕЙШИЙ КОНТРПИК' : 'BEST COUNTER' }}
+                    </span>
+                    <span v-if="item.isStructure" 
+                      style="font-size: 0.65rem; padding: 1px 5px; border-radius: 3px; background: rgba(168, 85, 247, 0.15); border: 1px solid #c084fc; color: #c084fc; font-family: var(--font-title); font-weight: bold; text-transform: uppercase;"
+                    >
+                      {{ lang === 'ru' ? 'ЗДАНИЕ' : 'STRUCTURE' }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Card Body: Specs Grid -->
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px;">
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <span style="font-size: 0.68rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;">
+                    {{ lang === 'ru' ? 'Стоимость' : 'Cost' }}
                   </span>
-                </td>
-                <td style="text-align: center;">{{ item.cost?.toLocaleString() }} M</td>
-                <td style="text-align: center;">{{ Math.round(item.dps) }}</td>
-                <td style="text-align: center; font-weight: bold; color: var(--color-cyan);">{{ item.spawnCount }}×</td>
-                <td :class="item.resultClass" style="font-weight: bold; text-align: center;">
+                  <span style="font-size: 0.95rem; font-weight: bold; color: #cbd5e1;">
+                    {{ item.cost?.toLocaleString() }} M
+                  </span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <span style="font-size: 0.68rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;">
+                    {{ lang === 'ru' ? 'УВС (DPS)' : 'DPS' }}
+                  </span>
+                  <span style="font-size: 0.95rem; font-weight: bold; color: #cbd5e1;">
+                    {{ Math.round(item.dps) }}
+                  </span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <span style="font-size: 0.68rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;">
+                    {{ lang === 'ru' ? 'Количество' : 'Quantity' }}
+                  </span>
+                  <span style="font-size: 1.05rem; font-weight: bold; color: var(--color-cyan);">
+                    {{ item.spawnCount }}×
+                  </span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <span style="font-size: 0.68rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;">
+                    {{ lang === 'ru' ? 'Рейтинг' : 'Rating' }}
+                  </span>
+                  <span style="font-size: 1.05rem; font-weight: bold; color: #10b981;">
+                    {{ item.score }}
+                  </span>
+                </div>
+              </div>
+              
+              <!-- Card Footer: Result status + SPAWN action button -->
+              <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; margin-top: auto; gap: 12px;">
+                <span :class="item.resultClass" style="font-size: 0.88rem; font-weight: bold; font-family: var(--font-title);">
                   {{ item.resultLabel }}
-                </td>
-                <td style="text-align: center;">
-                  <span class="rating-badge">{{ item.score }}</span>
-                </td>
-                <td style="text-align: right;">
-                  <button @click="$emit('spawn', item)" class="btn" style="padding: 4px 10px; font-size: 0.7rem; border-color: var(--color-cyan); color: var(--color-cyan); background: rgba(6,182,212,0.04);">
-                    {{ t('actionSpawn') }}
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                </span>
+                <button 
+                  @click="$emit('spawn', item)" 
+                  class="btn" 
+                  style="padding: 6px 14px; font-size: 0.8rem; border-color: var(--color-cyan); color: var(--color-cyan); background: rgba(6,182,212,0.04); font-weight: bold; cursor: pointer; transition: all 0.2s;"
+                >
+                  {{ t('actionSpawn') }}
+                </button>
+              </div>
+            </div>
+          </div>
         </template>
       </div>
     </div>
