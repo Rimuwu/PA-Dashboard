@@ -405,7 +405,7 @@ def main():
             'acceleration':     acceleration,
             'vision_radius':    vision_radius,
             'radar_radius':     radar_radius,
-            'icon':             f"/units/{safe_img_name}",
+            'icon':             f"/PA-Dashboard/units/{safe_img_name}",
             'buildable_unit_ids': [],
             'layers':           layers,
         })

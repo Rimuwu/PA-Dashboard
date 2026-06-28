@@ -1146,7 +1146,7 @@ h1, h2, h3, h4, .font-orbitron {
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: 5;
+  z-index: 10;
 }
 
 .connection-path {
@@ -1190,10 +1190,9 @@ h1, h2, h3, h4, .font-orbitron {
 
 /* Tooltip standard classes */
 .tooltip-custom {
-  position: absolute;
-  top: -10px;
-  left: 100%;
-  margin-left: 10px;
+  position: fixed;
+  left: 395px;
+  transform: translateY(-25%);
   background: rgba(18, 19, 22, 0.98);
   border: 1px solid var(--color-cyan);
   border-radius: 6px;
@@ -1207,6 +1206,10 @@ h1, h2, h3, h4, .font-orbitron {
 
 .sidebar-unit-card:hover .tooltip-custom {
   display: block;
+}
+
+.sidebar-unit-card:active .tooltip-custom {
+  display: none !important;
 }
 
 .tooltip-title {
@@ -2512,9 +2515,7 @@ input[type="checkbox"]:checked::after, .card-select-checkbox:checked::after {
 .timeline-columns-wrap {
   display: flex;
   gap: 12px;
-  overflow-x: auto;
   padding-bottom: 6px;
-  max-width: 90vw;
 }
 
 .timeline-col {
@@ -2538,16 +2539,16 @@ input[type="checkbox"]:checked::after, .card-select-checkbox:checked::after {
 }
 
 .timeline-minute-input {
-  width: 50px;
+  width: 60px;
   background: rgba(15, 17, 23, 0.7) !important;
   border: 1px solid rgba(255, 255, 255, 0.15) !important;
   color: var(--color-cyan) !important;
   text-align: center;
   font-family: var(--font-title) !important;
-  font-size: 0.75rem !important;
+  font-size: 0.9rem !important;
   font-weight: bold;
   border-radius: 4px;
-  padding: 2px 4px !important;
+  padding: 3px 6px !important;
   outline: none;
 }
 
@@ -2724,5 +2725,31 @@ input[type="checkbox"]:checked::after, .card-select-checkbox:checked::after {
 
 .timeline-col-resize-handle:hover {
   filter: brightness(1.2);
+}
+
+.loading-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(6, 182, 212, 0.12);
+  border-top-color: var(--color-cyan);
+  border-radius: 50%;
+  animation: spinLoader 0.75s cubic-bezier(0.5, 0.1, 0.4, 0.9) infinite;
+}
+
+@keyframes spinLoader {
+  to { transform: rotate(360deg); }
+}
+
+.collapsible-header {
+  cursor: pointer;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  width: 100%;
+  user-select: none;
+}
+
+.collapsible-header:hover {
+  filter: brightness(1.3);
 }
 

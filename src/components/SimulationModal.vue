@@ -107,6 +107,7 @@ watch(() => props.animSim?.displayedLog?.length, () => {
             <option :value="1.5">1.5x</option>
             <option :value="2.0">2.0x</option>
             <option :value="3.0">3.0x</option>
+            <option :value="4.0">4.0x</option>
           </select>
         </div>
       </div>
@@ -229,26 +230,41 @@ watch(() => props.animSim?.displayedLog?.length, () => {
             />
 
             <!-- Fire lines: Team A shooting -->
-            <line
-              v-for="u in currentTick.aUnits.filter(x => x.firingAt)"
-              :key="'fl-a-' + u.id"
-              class="bf2d-fire-line team-a"
-              :x1="getSvgX(u.x)"
-              :y1="getSvgY(u.y || 0)"
-              :x2="getSvgX(currentTick.bUnits.find(b => b.id === u.firingAt)?.x ?? (u.x + 80))"
-              :y2="getSvgY(currentTick.bUnits.find(b => b.id === u.firingAt)?.y ?? 0)"
-              stroke-width="1.5"
-            />
+            <template v-for="u in currentTick.aUnits" :key="'fl-wrap-a-' + u.id">
+              <line
+                v-for="(fire, fIdx) in (u.fires || (u.firingAt ? [{ targetId: u.firingAt }] : []))"
+                :key="'fl-a-' + u.id + '-' + fIdx"
+                class="bf2d-fire-line team-a"
+                :x1="getSvgX(u.x)"
+                :y1="getSvgY(u.y || 0)"
+                :x2="getSvgX(currentTick.bUnits.find(b => b.id === fire.targetId)?.x ?? (u.x + 80))"
+                :y2="getSvgY(currentTick.bUnits.find(b => b.id === fire.targetId)?.y ?? 0)"
+                stroke-width="1.5"
+              />
+            </template>
             <!-- Fire lines: Team B shooting -->
-            <line
-              v-for="u in currentTick.bUnits.filter(x => x.firingAt)"
-              :key="'fl-b-' + u.id"
-              class="bf2d-fire-line team-b"
-              :x1="getSvgX(u.x)"
-              :y1="getSvgY(u.y || 0)"
-              :x2="getSvgX(currentTick.aUnits.find(a => a.id === u.firingAt)?.x ?? (u.x - 80))"
-              :y2="getSvgY(currentTick.aUnits.find(a => a.id === u.firingAt)?.y ?? 0)"
-              stroke-width="1.5"
+            <template v-for="u in currentTick.bUnits" :key="'fl-wrap-b-' + u.id">
+              <line
+                v-for="(fire, fIdx) in (u.fires || (u.firingAt ? [{ targetId: u.firingAt }] : []))"
+                :key="'fl-b-' + u.id + '-' + fIdx"
+                class="bf2d-fire-line team-b"
+                :x1="getSvgX(u.x)"
+                :y1="getSvgY(u.y || 0)"
+                :x2="getSvgX(currentTick.aUnits.find(a => a.id === fire.targetId)?.x ?? (u.x - 80))"
+                :y2="getSvgY(currentTick.aUnits.find(a => a.id === fire.targetId)?.y ?? 0)"
+                stroke-width="1.5"
+              />
+            </template>
+
+            <!-- Projectile dots -->
+            <circle
+              v-for="(proj, pIdx) in (currentTick.projectiles || [])"
+              :key="'proj-' + pIdx"
+              :cx="getSvgX(proj.x)"
+              :cy="getSvgY(proj.y || 0)"
+              r="3.5"
+              :fill="proj.team === 'A' ? '#4ade80' : '#f87171'"
+              opacity="0.95"
             />
           </svg>
 

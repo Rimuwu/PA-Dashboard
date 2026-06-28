@@ -81,6 +81,13 @@ const activeSubFilter = ref('all'); // all, structures, mobile, combat, factorie
 const activeTargetFilters = ref([]); // e.g. ['land', 'air']
 const activeTierFilters = ref([]);   // e.g. ['T1', 'T2']
 const filtersCollapsed = ref(false);
+const collapsedFilterGroups = ref({
+  target: false,
+  tier: false,
+  factory: false,
+  sort: false,
+  tags: false,
+});
 const sidebarSortBy = ref('default');
 const sidebarSortOrder = ref('desc');
 const activeTagFilters = ref([]);
@@ -209,7 +216,9 @@ const getUnitEnergyStats = (unit) => {
     energyProd = 2000;
   }
   
-  if (uid.includes('radar_adv')) {
+  if (unit.category === 'commander' || uid.includes('commander')) {
+    energyCons = 0;
+  } else if (uid.includes('radar_adv')) {
     energyCons = 4000;
   } else if (uid.includes('radar_satellite') || uid.includes('orbital_radar')) {
     energyCons = 500;
@@ -235,6 +244,65 @@ const getUnitEnergyStats = (unit) => {
     energyProd,
     energyCons
   };
+};
+
+const getUnitMetalStats = (unit) => {
+  if (!unit) return { metalProd: 0, metalCons: 0 };
+  let metalProd = 0;
+  let metalCons = 0;
+  
+  const uid = unit.id.toLowerCase();
+  
+  if (uid.includes('metal_extractor_adv')) {
+    metalProd = 28;
+  } else if (uid.includes('metal_extractor')) {
+    metalProd = 7;
+  } else if (unit.category === 'commander' || uid.includes('commander')) {
+    metalProd = 15;
+  }
+  
+  if (unit.category === 'commander' || uid.includes('commander')) {
+    metalCons = 0;
+  } else if (unit.is_builder || unit.is_factory) {
+    metalCons = unit.build_metal_rate || (unit.is_factory ? 15 : 10);
+  }
+  
+  return {
+    metalProd,
+    metalCons
+  };
+};
+
+const getColumnMetalProd = (colId) => {
+  const units = placedUnits.value.filter(u => u.timelineColId === colId);
+  return units.reduce((sum, u) => {
+    const spec = getUnitById(u.unitId);
+    return sum + (getUnitMetalStats(spec)?.metalProd || 0) * u.count;
+  }, 0);
+};
+
+const getColumnMetalCons = (colId) => {
+  const units = placedUnits.value.filter(u => u.timelineColId === colId);
+  return units.reduce((sum, u) => {
+    const spec = getUnitById(u.unitId);
+    return sum + (getUnitMetalStats(spec)?.metalCons || 0) * u.count;
+  }, 0);
+};
+
+const getColumnEnergyProd = (colId) => {
+  const units = placedUnits.value.filter(u => u.timelineColId === colId);
+  return units.reduce((sum, u) => {
+    const spec = getUnitById(u.unitId);
+    return sum + (getUnitEnergyStats(spec)?.energyProd || 0) * u.count;
+  }, 0);
+};
+
+const getColumnEnergyCons = (colId) => {
+  const units = placedUnits.value.filter(u => u.timelineColId === colId);
+  return units.reduce((sum, u) => {
+    const spec = getUnitById(u.unitId);
+    return sum + (getUnitEnergyStats(spec)?.energyCons || 0) * u.count;
+  }, 0);
 };
 
 // Canvas build timelines state
@@ -265,12 +333,19 @@ const getTimelineColumnAt = (canvasX, canvasY) => {
     const colGap = 12;
     for (const col of panel.columns) {
       const colW = col.width || 250;
-      const colH = col.height || 420;
+      const colH = panel.height || col.height || 420;
+      
+      let colSummaryRows = 2;
+      if (getColumnMetalProd(col.id) > 0) colSummaryRows++;
+      if (getColumnMetalCons(col.id) > 0) colSummaryRows++;
+      if (getColumnEnergyProd(col.id) > 0) colSummaryRows++;
+      if (getColumnEnergyCons(col.id) > 0) colSummaryRows++;
+      const colSummaryHeight = colSummaryRows * 18 + 12;
       
       const left = currentX;
       const right = currentX + colW;
       const top = panel.y + headerHeight;
-      const bottom = panel.y + headerHeight + colH - 45; // exclude bottom summary area
+      const bottom = panel.y + headerHeight + colH - colSummaryHeight;
       
       if (canvasX >= left && canvasX <= right && canvasY >= top && canvasY <= bottom) {
         return {
@@ -359,7 +434,7 @@ const startResizeColumn = (panel, col, e) => {
   e.preventDefault();
   pushToUndoStack();
   const startWidth = col.width || 250;
-  const startHeight = col.height || 420;
+  const startHeight = panel.height || col.height || 420;
   const startX = e.clientX;
   const startY = e.clientY;
   
@@ -369,7 +444,7 @@ const startResizeColumn = (panel, col, e) => {
     const newWidth = Math.max(240, startWidth + dx);
     const newHeight = Math.max(300, startHeight + dy);
     col.width = snapToGrid.value ? Math.round(newWidth / 40) * 40 : newWidth;
-    col.height = snapToGrid.value ? Math.round(newHeight / 40) * 40 : newHeight;
+    panel.height = snapToGrid.value ? Math.round(newHeight / 40) * 40 : newHeight;
   };
   
   const onMouseUp = () => {
@@ -395,7 +470,19 @@ const onTimelineMinuteChange = (panel, changedCol) => {
 
 const onTimelineMousedown = (panel, e) => {
   if (e.target.closest('.qty-btn') || e.target.closest('input') || e.target.closest('button') || e.target.closest('.unit-card') || e.target.closest('.timeline-col-resize-handle')) return;
+  
+  if (e.button === 1) {
+    startPanning(e);
+    return;
+  }
   if (e.button !== 0) return;
+  
+  const isHeader = e.target.closest('.timeline-panel-header');
+  if (!isHeader) {
+    startPanning(e);
+    return;
+  }
+  
   e.stopPropagation();
   
   pushToUndoStack();
@@ -502,6 +589,7 @@ const compareUnitIds = ref([]);
 const counterSelectedNodeUuid = ref(null);
 const showCounterModal = ref(false);
 const counterRatings = ref([]);
+const counterRatingsLoading = ref(false);
 const hardestCountersCache = pregeneratedHardestCounters;
 
 const undoStack = ref([]);
@@ -547,46 +635,62 @@ const openUnitDetail = (item) => {
   }
 };
 
-const getBestValue = (property, order = 'max') => {
+const comparisonBestValues = ref({});
+const comparisonWorstValues = ref({});
+
+const calculateComparisonMetrics = () => {
   const specs = compareUnitIds.value.map(id => getUnitById(id)).filter(Boolean);
-  if (specs.length === 0) return null;
-  const values = specs.map(s => {
-    if (property === 'cost') return s.cost || 0;
-    if (property === 'health') return s.health || 0;
-    if (property === 'dps') return s.dps || 0;
-    if (property === 'range') return s.range || 0;
-    if (property === 'speed') return s.move_speed || 0;
-    if (property === 'turn_speed') return s.turn_speed || 0;
-    if (property === 'vision') return s.vision_radius || 0;
-    if (property === 'radar') return s.radar_radius || 0;
-    if (property === 'build_energy') return s.unit_types?.includes('UNITTYPE_Structure') ? s.cost * 25 : 0;
-    if (property === 'energy_prod') return getUnitEnergyStats(s)?.energyProd || 0;
-    if (property === 'energy_cons') return getUnitEnergyStats(s)?.energyCons || 0;
-    if (property === 'repair') return s.is_builder ? s.build_metal_rate || 0 : 0;
-    return 0;
+  if (specs.length === 0) {
+    comparisonBestValues.value = {};
+    comparisonWorstValues.value = {};
+    return;
+  }
+  
+  const properties = ['cost', 'health', 'dps', 'range', 'speed', 'turn_speed', 'vision', 'radar', 'build_energy', 'energy_prod', 'energy_cons', 'repair'];
+  const bests = {};
+  const worsts = {};
+  
+  properties.forEach(property => {
+    const values = specs.map(s => {
+      if (property === 'cost') return s.cost || 0;
+      if (property === 'health') return s.health || 0;
+      if (property === 'dps') return s.dps || 0;
+      if (property === 'range') return s.range || 0;
+      if (property === 'speed') return s.move_speed || 0;
+      if (property === 'turn_speed') return s.turn_speed || 0;
+      if (property === 'vision') return s.vision_radius || 0;
+      if (property === 'radar') return s.radar_radius || 0;
+      if (property === 'build_energy') return s.unit_types?.includes('UNITTYPE_Structure') ? s.cost * 25 : 0;
+      if (property === 'energy_prod') return getUnitEnergyStats(s)?.energyProd || 0;
+      if (property === 'energy_cons') return getUnitEnergyStats(s)?.energyCons || 0;
+      if (property === 'repair') return s.is_builder ? s.build_metal_rate || 0 : 0;
+      return 0;
+    });
+    
+    const worstValues = specs.map(s => {
+      if (property === 'build_energy') return s.unit_types?.includes('UNITTYPE_Structure') ? s.cost * 25 : 99999999;
+      return values[specs.indexOf(s)];
+    });
+    
+    if (['cost', 'build_energy'].includes(property)) {
+      bests[property] = Math.min(...values);
+      worsts[property] = Math.max(...worstValues);
+    } else {
+      bests[property] = Math.max(...values);
+      worsts[property] = Math.min(...values);
+    }
   });
-  return order === 'max' ? Math.max(...values) : Math.min(...values);
+  
+  comparisonBestValues.value = bests;
+  comparisonWorstValues.value = worsts;
+};
+
+const getBestValue = (property, order = 'max') => {
+  return comparisonBestValues.value[property];
 };
 
 const getWorstValue = (property, order = 'max') => {
-  const specs = compareUnitIds.value.map(id => getUnitById(id)).filter(Boolean);
-  if (specs.length === 0) return null;
-  const values = specs.map(s => {
-    if (property === 'cost') return s.cost || 0;
-    if (property === 'health') return s.health || 0;
-    if (property === 'dps') return s.dps || 0;
-    if (property === 'range') return s.range || 0;
-    if (property === 'speed') return s.move_speed || 0;
-    if (property === 'turn_speed') return s.turn_speed || 0;
-    if (property === 'vision') return s.vision_radius || 0;
-    if (property === 'radar') return s.radar_radius || 0;
-    if (property === 'build_energy') return s.unit_types?.includes('UNITTYPE_Structure') ? s.cost * 25 : 99999999;
-    if (property === 'energy_prod') return getUnitEnergyStats(s)?.energyProd || 0;
-    if (property === 'energy_cons') return getUnitEnergyStats(s)?.energyCons || 0;
-    if (property === 'repair') return s.is_builder ? s.build_metal_rate || 0 : 0;
-    return 0;
-  });
-  return order === 'max' ? Math.min(...values) : Math.max(...values);
+  return comparisonWorstValues.value[property];
 };
 
 // Simulation Settings Modal State
@@ -595,7 +699,7 @@ const showConnectionSettingsModal = ref(false);
 const activeEditingConnection = ref(null);
 const simSettings = ref({
   maxTime: 120,
-  playbackSpeed: 1.0,
+  playbackSpeed: 4.0,
   logVerbosity: 'all',
   initialDistance: 300
 });
@@ -746,7 +850,8 @@ watch(() => animSim.value, async (newVal) => {
   if (newVal) {
     await nextTick();
     if (bfTrack.value) {
-      trackWidth.value = bfTrack.value.clientWidth || 472;
+      const el = bfTrack.value.$el.querySelector('.battlefield-track-2d');
+      trackWidth.value = el ? el.clientWidth || 752 : 752;
     }
   }
 });
@@ -754,7 +859,8 @@ watch(() => animSim.value, async (newVal) => {
 // Update width on window resize
 const updateTrackWidth = () => {
   if (bfTrack.value) {
-    trackWidth.value = bfTrack.value.clientWidth || 472;
+    const el = bfTrack.value.$el.querySelector('.battlefield-track-2d');
+    trackWidth.value = el ? el.clientWidth || 752 : 752;
   }
 };
 onMounted(() => {
@@ -1243,8 +1349,17 @@ const stopPanning = () => {
           const rx = u.x - colPos.x;
           const ry = u.y - colPos.y;
           
+          const colHeight = dropCol.panel.height || dropCol.col.height || 420;
+          let colSummaryRows = 2;
+          if (getColumnMetalProd(dropCol.col.id) > 0) colSummaryRows++;
+          if (getColumnMetalCons(dropCol.col.id) > 0) colSummaryRows++;
+          if (getColumnEnergyProd(dropCol.col.id) > 0) colSummaryRows++;
+          if (getColumnEnergyCons(dropCol.col.id) > 0) colSummaryRows++;
+          const colSummaryHeight = colSummaryRows * 18 + 12;
+          const colOffset = 35 + colSummaryHeight;
+
           u.x = Math.max(0, Math.min((dropCol.col.width || 250) - CARD_W, rx));
-          u.y = Math.max(0, Math.min((dropCol.col.height || 420) - CARD_H - 45, ry));
+          u.y = Math.max(0, Math.min(colHeight - CARD_H - colOffset, ry));
           
           autoFitColumnSize(dropCol.col);
         } else {
@@ -1511,84 +1626,123 @@ const findMinWinningCount = (node, candidateUnitId) => {
   return { count: maxSearchLimit, sim: null };
 };
 
-const calculateCounterRatings = () => {
+const calculateCounterRatings = async () => {
   const nodeUuid = counterSelectedNodeUuid.value;
   const node = getElement(nodeUuid);
   if (!node) return;
   
   const combatants = getCombatants(node);
   if (combatants.length === 0) return;
-  const ourTotalMetalCost = combatants.reduce((sum, u) => sum + (u.cost * u.count), 0);
-  const ourAvgDps = combatants.reduce((sum, u) => sum + (u.dps || 0), 0) / combatants.length;
   
-  // Exclude self-unit types from candidates
-  const selfUnitIds = new Set(combatants.map(u => u.unitId));
+  counterRatingsLoading.value = true;
+  counterRatings.value = [];
   
-  const candidates = unitsData.filter(u => {
-    const isMobile = u.unit_types?.includes('UNITTYPE_Mobile');
-    const isStructure = u.unit_types?.includes('UNITTYPE_Structure');
-    const isCmd = u.category === 'commander' || u.id.includes('commander');
-    const hasWeapon = u.weapons && u.weapons.length > 0;
-    const isSelf = selfUnitIds.has(u.id);
-    if (!isMobile || isStructure || isCmd || !hasWeapon || u.cost <= 0 || isSelf) {
-      return false;
-    }
-    // Only include candidates that can target at least one of our combatants
-    return u.weapons.some(wpn => 
-      combatants.some(target => canTargetLayer(wpn.target_layers, target.layers))
-    );
-  });
+  try {
+    const ourTotalMetalCost = combatants.reduce((sum, u) => sum + (u.cost * u.count), 0);
+    const ourAvgDps = combatants.reduce((sum, u) => sum + (u.dps || 0), 0) / combatants.length;
+    
+    // Exclude self-unit types from candidates
+    const selfUnitIds = new Set(combatants.map(u => u.unitId));
+    
+    const candidates = unitsData.filter(u => {
+      const isMobile = u.unit_types?.includes('UNITTYPE_Mobile');
+      const isStructure = u.unit_types?.includes('UNITTYPE_Structure');
+      const isCmd = u.category === 'commander' || u.id.includes('commander');
+      const hasWeapon = u.weapons && u.weapons.length > 0;
+      const isSelf = selfUnitIds.has(u.id);
+      if (!isMobile || isStructure || isCmd || !hasWeapon || u.cost <= 0 || isSelf) {
+        return false;
+      }
+      // Only include candidates that can target at least one of our combatants
+      return u.weapons.some(wpn => 
+        combatants.some(target => canTargetLayer(wpn.target_layers, target.layers))
+      );
+    });
 
-  // Check if pregenerated cache has the best counter for a single-unit node
-  const allUnitIds = combatants.map(u => u.unitId);
-  const cachedBestId = allUnitIds.length === 1 ? hardestCountersCache[allUnitIds[0]] : null;
-  
-  const ratings = candidates.map(candidate => {
-    // Find MINIMUM count at which this candidate beats the node
-    const { count: minCount, sim } = findMinWinningCount(node, candidate.id);
+    // Check if pregenerated cache has the best counter for a single-unit node
+    const allUnitIds = combatants.map(u => u.unitId);
+    const cachedBestId = allUnitIds.length === 1 ? hardestCountersCache[allUnitIds[0]]?.bestCounterId : null;
     
-    let score = 0;
-    let resultLabel = '';
-    let resultClass = '';
-    
-    if (sim && sim.winner === 'B') {
-      // Wins: lower cost-per-win is better. Score inversely proportional to total cost spent.
-      const totalCostSpent = minCount * candidate.cost;
-      const costRatio = ourTotalMetalCost / (totalCostSpent || 1);
-      score += 1000 + costRatio * 500 + sim.remainingHpPercent * 2;
-      resultLabel = lang.value === 'ru'
-        ? `Победа (${sim.remainingHpPercent}% HP)`
-        : `Wins (${sim.remainingHpPercent}% HP)`;
-      resultClass = 'text-green';
-    } else {
-      // Never wins or draws — heavily penalise
-      score -= 2000;
-      resultLabel = lang.value === 'ru' ? 'Не побеждает' : 'Cannot win';
-      resultClass = 'text-red';
+    const cachedData = allUnitIds.length === 1 ? hardestCountersCache[allUnitIds[0]] : null;
+    if (cachedData && cachedData.ratings) {
+      const localizedRatings = cachedData.ratings.map(item => {
+        let resultLabel = item.resultLabel;
+        if (lang.value === 'ru') {
+          if (resultLabel.startsWith('Wins')) {
+            const hp = resultLabel.match(/\d+/)?.[0] || '0';
+            resultLabel = `Победа (${hp}% HP)`;
+          } else if (resultLabel === 'Cannot win') {
+            resultLabel = 'Не побеждает';
+          }
+        }
+        return {
+          ...item,
+          resultLabel
+        };
+      });
+      counterRatings.value = localizedRatings;
+      counterRatingsLoading.value = false;
+      return;
     }
     
-    if ((candidate.dps || 0) > ourAvgDps) score += 100;
-    if (candidate.cost < (ourTotalMetalCost / (minCount || 1))) score += 100;
+    const ratings = [];
     
-    // Prioritize pregenerated best counter
-    if (cachedBestId && candidate.id === cachedBestId) score += 2000;
+    for (let i = 0; i < candidates.length; i++) {
+      // Yield to keep UI responsive
+      if (i > 0 && i % 3 === 0) {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+      
+      // Check if the user closed the modal or switched context during generation
+      if (counterSelectedNodeUuid.value !== nodeUuid || !showCounterModal.value) {
+        return;
+      }
+      
+      const candidate = candidates[i];
+      const { count: minCount, sim } = findMinWinningCount(node, candidate.id);
+      
+      let score = 0;
+      let resultLabel = '';
+      let resultClass = '';
+      
+      if (sim && sim.winner === 'B') {
+        const totalCostSpent = minCount * candidate.cost;
+        const costRatio = ourTotalMetalCost / (totalCostSpent || 1);
+        score += 1000 + costRatio * 500 + sim.remainingHpPercent * 2;
+        resultLabel = lang.value === 'ru'
+          ? `Победа (${sim.remainingHpPercent}% HP)`
+          : `Wins (${sim.remainingHpPercent}% HP)`;
+        resultClass = 'text-green';
+      } else {
+        score -= 2000;
+        resultLabel = lang.value === 'ru' ? 'Не побеждает' : 'Cannot win';
+        resultClass = 'text-red';
+      }
+      
+      if ((candidate.dps || 0) > ourAvgDps) score += 100;
+      if (candidate.cost < (ourTotalMetalCost / (minCount || 1))) score += 100;
+      
+      // Prioritize pregenerated best counter
+      if (cachedBestId && candidate.id === cachedBestId) score += 2000;
+      
+      ratings.push({
+        unitId: candidate.id,
+        name: candidate.name,
+        icon: candidate.icon,
+        cost: candidate.cost,
+        dps: candidate.dps || 0,
+        spawnCount: minCount,
+        resultLabel,
+        resultClass,
+        score: Math.round(score)
+      });
+    }
     
-    return {
-      unitId: candidate.id,
-      name: candidate.name,
-      icon: candidate.icon,
-      cost: candidate.cost,
-      dps: candidate.dps || 0,
-      spawnCount: minCount,
-      sim,
-      resultLabel,
-      resultClass,
-      score: Math.round(score)
-    };
-  });
-  
-  ratings.sort((a, b) => b.score - a.score);
-  counterRatings.value = ratings;
+    ratings.sort((a, b) => b.score - a.score);
+    counterRatings.value = ratings;
+  } finally {
+    counterRatingsLoading.value = false;
+  }
 };
 
 const spawnCounterOpponent = (ratingItem) => {
@@ -1924,8 +2078,9 @@ const completeConnection = (targetElement, e) => {
 
 // Spawn unit from factory/builder
 const spawnFromFactory = (factory, buildUnitId) => {
-  const rawX = factory.x + CARD_WIDTH + 60;
-  const rawY = factory.y;
+  const isTimeline = !!factory.timelineColId;
+  const rawX = isTimeline ? factory.x + 30 : factory.x + CARD_WIDTH + 60;
+  const rawY = isTimeline ? factory.y + 40 : factory.y;
   
   pushToUndoStack();
   placedUnits.value.push({
@@ -1934,7 +2089,8 @@ const spawnFromFactory = (factory, buildUnitId) => {
     x: snapToGrid.value ? Math.round(rawX / 40) * 40 : rawX,
     y: snapToGrid.value ? Math.round(rawY / 40) * 40 : rawY,
     count: 1,
-    showFactoryMenu: false
+    showFactoryMenu: false,
+    timelineColId: factory.timelineColId || null
   });
   
   factory.showFactoryMenu = false;
@@ -2145,7 +2301,7 @@ const startAnimatedSimulation = (conn) => {
     simTimeCur: 0,
     isPlaying: true,
     intervalId: null,
-    playbackSpeed: simSettings.value.playbackSpeed || 1.0,
+    playbackSpeed: simSettings.value.playbackSpeed || 4.0,
     done: false
   };
 
@@ -2167,7 +2323,7 @@ const startAnimatedSimulation = (conn) => {
   };
 
   // Compress: skip ticks with no log events and no big HP change for speed
-  const TICK_INTERVAL_MS = Math.round(25 / (simSettings.value.playbackSpeed || 1.0));
+  const TICK_INTERVAL_MS = Math.round(100 / (simSettings.value.playbackSpeed || 4.0));
   state.intervalId = setInterval(advanceTick, TICK_INTERVAL_MS);
   advanceTick(); // show first tick immediately
   animSim.value = { ...state };
@@ -2206,7 +2362,7 @@ const startAnimatedSim = () => {
     animSim.value = { ...state };
   };
   
-  const TICK_INTERVAL_MS = Math.round(25 / (simSettings.value.playbackSpeed || 1.0));
+  const TICK_INTERVAL_MS = Math.round(100 / (simSettings.value.playbackSpeed || 4.0));
   animSim.value.intervalId = setInterval(advanceTick, TICK_INTERVAL_MS);
   animSim.value = { ...animSim.value };
 };
@@ -2515,6 +2671,7 @@ const compareSelectedUnits = () => {
   const uniqueUnitIds = Array.from(new Set(selectedCards.map(u => u.unitId)));
   if (uniqueUnitIds.length > 0) {
     compareUnitIds.value = uniqueUnitIds;
+    calculateComparisonMetrics();
     showCompareModal.value = true;
   }
 };
@@ -2524,6 +2681,7 @@ const compareAreaUnits = (areaUuid) => {
   const uniqueUnitIds = Array.from(new Set(insideUnits.map(u => u.unitId)));
   if (uniqueUnitIds.length > 0) {
     compareUnitIds.value = uniqueUnitIds;
+    calculateComparisonMetrics();
     showCompareModal.value = true;
   }
 };
@@ -2995,6 +3153,16 @@ const vFocus = {
           />
         </div>
         
+        <!-- Toggle Filters Button -->
+        <div style="display: flex; justify-content: flex-end; margin-top: 8px; padding-right: 4px;">
+          <button 
+            @click="filtersCollapsed = !filtersCollapsed"
+            style="background: transparent; border: none; color: var(--color-cyan); cursor: pointer; font-family: var(--font-title); font-size: 0.65rem; display: flex; align-items: center; gap: 4px; text-transform: uppercase;"
+          >
+            <component :is="filtersCollapsed ? ChevronDown : ChevronUp" :size="12" />
+            {{ filtersCollapsed ? (lang === 'ru' ? 'Показать фильтры' : 'Show filters') : (lang === 'ru' ? 'Скрыть фильтры' : 'Hide filters') }}
+          </button>
+        </div>
 
       </div>
       
@@ -3032,12 +3200,15 @@ const vFocus = {
 
       <!-- Target Filter (Кого атакуют) — multi-select -->
       <div class="sub-filters-container filter-group-block" v-show="!filtersCollapsed">
-        <div class="filter-group-label">
-          <Target :size="11" />
-          {{ lang === 'ru' ? 'Кого атакуют' : 'Target Types' }}
-          <span v-if="activeTargetFilters.length > 0" class="filter-count-badge">{{ activeTargetFilters.length }}</span>
+        <div class="filter-group-label collapsible-header" @click="collapsedFilterGroups.target = !collapsedFilterGroups.target">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <Target :size="11" />
+            {{ lang === 'ru' ? 'Кого атакуют' : 'Target Types' }}
+            <span v-if="activeTargetFilters.length > 0" class="filter-count-badge">{{ activeTargetFilters.length }}</span>
+          </div>
+          <ChevronDown :size="12" :style="{ transform: collapsedFilterGroups.target ? 'rotate(-90deg)' : 'none', transition: 'transform 0.2s' }" />
         </div>
-        <div class="filter-group-chips">
+        <div class="filter-group-chips" v-show="!collapsedFilterGroups.target">
           <button
             v-for="tf in [
               { id: 'land',    label: lang === 'ru' ? 'Земля' : 'Land' },
@@ -3054,12 +3225,15 @@ const vFocus = {
 
       <!-- Tier Filter — multi-select -->
       <div class="sub-filters-container filter-group-block" v-show="!filtersCollapsed">
-        <div class="filter-group-label">
-          <Star :size="11" />
-          {{ lang === 'ru' ? 'Тир' : 'Tier' }}
-          <span v-if="activeTierFilters.length > 0" class="filter-count-badge">{{ activeTierFilters.length }}</span>
+        <div class="filter-group-label collapsible-header" @click="collapsedFilterGroups.tier = !collapsedFilterGroups.tier">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <Star :size="11" />
+            {{ lang === 'ru' ? 'Тир' : 'Tier' }}
+            <span v-if="activeTierFilters.length > 0" class="filter-count-badge">{{ activeTierFilters.length }}</span>
+          </div>
+          <ChevronDown :size="12" :style="{ transform: collapsedFilterGroups.tier ? 'rotate(-90deg)' : 'none', transition: 'transform 0.2s' }" />
         </div>
-        <div class="filter-group-chips">
+        <div class="filter-group-chips" v-show="!collapsedFilterGroups.tier">
           <button
             v-for="tr in ['T1', 'T2', 'Titan']"
             :key="tr"
@@ -3071,11 +3245,14 @@ const vFocus = {
 
       <!-- Factory Filter -->
       <div class="sub-filters-container filter-group-block" v-show="!filtersCollapsed">
-        <div class="filter-group-label" style="margin-bottom: 6px;">
-          <Factory :size="11" />
-          {{ t('factoryFilter') }}
+        <div class="filter-group-label collapsible-header" @click="collapsedFilterGroups.factory = !collapsedFilterGroups.factory" style="margin-bottom: 6px;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <Factory :size="11" />
+            {{ t('factoryFilter') }}
+          </div>
+          <ChevronDown :size="12" :style="{ transform: collapsedFilterGroups.factory ? 'rotate(-90deg)' : 'none', transition: 'transform 0.2s' }" />
         </div>
-        <select v-model="selectedFactoryFilter" class="sidebar-select" style="width: 100%;">
+        <select v-model="selectedFactoryFilter" class="sidebar-select" style="width: 100%;" v-show="!collapsedFilterGroups.factory">
           <option value="all">{{ t('factoryFilter_all') }}</option>
           <option value="commander">{{ lang === 'ru' ? 'Командиры (Все)' : 'Commanders (All)' }}</option>
           <option v-for="fact in sidebarFactories" :key="fact.id" :value="fact.id">
@@ -3086,11 +3263,14 @@ const vFocus = {
 
       <!-- Sorting Selector -->
       <div class="sub-filters-container filter-group-block" v-show="!filtersCollapsed">
-        <div class="filter-group-label" style="margin-bottom: 6px;">
-          <Sword :size="11" />
-          {{ t('sortBy') }}
+        <div class="filter-group-label collapsible-header" @click="collapsedFilterGroups.sort = !collapsedFilterGroups.sort" style="margin-bottom: 6px;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <Sword :size="11" />
+            {{ t('sortBy') }}
+          </div>
+          <ChevronDown :size="12" :style="{ transform: collapsedFilterGroups.sort ? 'rotate(-90deg)' : 'none', transition: 'transform 0.2s' }" />
         </div>
-        <div style="display: flex; gap: 8px; width: 100%;">
+        <div style="display: flex; gap: 8px; width: 100%;" v-show="!collapsedFilterGroups.sort">
           <select v-model="sidebarSortBy" class="sidebar-select" style="flex: 1;">
             <option value="default">{{ t('sort_default') }}</option>
             <option value="name">{{ t('sort_name') }}</option>
@@ -3114,12 +3294,15 @@ const vFocus = {
 
       <!-- Tags Filter -->
       <div class="sub-filters-container filter-group-block" v-show="!filtersCollapsed">
-        <div class="filter-group-label">
-          <Tag :size="11" style="transform: rotate(90deg);" />
-          {{ t('tagsFilter') }}
-          <span v-if="activeTagFilters.length > 0" class="filter-count-badge">{{ activeTagFilters.length }}</span>
+        <div class="filter-group-label collapsible-header" @click="collapsedFilterGroups.tags = !collapsedFilterGroups.tags">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <Tag :size="11" style="transform: rotate(90deg);" />
+            {{ t('tagsFilter') }}
+            <span v-if="activeTagFilters.length > 0" class="filter-count-badge">{{ activeTagFilters.length }}</span>
+          </div>
+          <ChevronDown :size="12" :style="{ transform: collapsedFilterGroups.tags ? 'rotate(-90deg)' : 'none', transition: 'transform 0.2s' }" />
         </div>
-        <div class="tags-filter-container">
+        <div class="tags-filter-container" v-show="!collapsedFilterGroups.tags">
           <span 
             v-for="tag in ['Tank', 'Bot', 'Air', 'Naval', 'Orbital', 'Structure', 'Defense', 'Advanced', 'Basic', 'Fabber', 'Combat', 'Artillery', 'Tactical', 'Fighter', 'Bomber', 'Sub', 'Heavy', 'Mobile']" 
             :key="tag"
@@ -3133,15 +3316,8 @@ const vFocus = {
       
       <!-- Unit Grid List -->
       <div class="unit-list-container">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 6px;">
+        <div style="display: flex; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 6px;">
           <div class="sidebar-section-title" style="margin-bottom: 0; line-height: 1;">{{ t('dragToCanvas') }}</div>
-          <button 
-            @click="filtersCollapsed = !filtersCollapsed"
-            style="background: transparent; border: none; color: var(--color-cyan); cursor: pointer; font-family: var(--font-title); font-size: 0.65rem; display: flex; align-items: center; gap: 4px; text-transform: uppercase;"
-          >
-            <component :is="filtersCollapsed ? ChevronDown : ChevronUp" :size="12" />
-            {{ filtersCollapsed ? (lang === 'ru' ? 'Показать' : 'Show') : (lang === 'ru' ? 'Скрыть' : 'Hide') }}
-          </button>
         </div>
         <div class="unit-grid-sidebar">
           <div 
@@ -3153,7 +3329,15 @@ const vFocus = {
           >
             <img :src="unit.icon" :alt="unit.name" class="sidebar-unit-img" />
             <div class="sidebar-unit-name">{{ t('unit_name_' + unit.id) }}</div>
-            <div class="sidebar-unit-cost">{{ unit.cost }} M</div>
+            <div style="display: flex; gap: 6px; align-items: center; justify-content: center; flex-wrap: wrap; margin-top: 2px;">
+              <div class="sidebar-unit-cost" style="margin: 0;">{{ unit.cost }} M</div>
+              <div v-if="getUnitEnergyStats(unit)?.energyProd > 0" class="sidebar-unit-energy-prod" style="font-size: 0.62rem; color: #4ade80; font-weight: bold; background: rgba(74, 222, 128, 0.08); padding: 1px 4px; border-radius: 3px;">
+                +{{ getUnitEnergyStats(unit).energyProd }} E
+              </div>
+              <div v-if="getUnitMetalStats(unit)?.metalProd > 0" class="sidebar-unit-metal-prod" style="font-size: 0.62rem; color: #4ade80; font-weight: bold; background: rgba(74, 222, 128, 0.08); padding: 1px 4px; border-radius: 3px;">
+                +{{ getUnitMetalStats(unit).metalProd }} M
+              </div>
+            </div>
 
             <!-- Custom Tooltip on Hover -->
             <div class="tooltip-custom">
@@ -3177,6 +3361,11 @@ const vFocus = {
                 <div v-if="getUnitEnergyStats(unit)?.energyProd > 0" style="display:flex; justify-content:space-between; width: 100%;">
                   <span style="color:var(--text-dim);">{{ lang === 'ru' ? 'Энергия (выработка):' : 'Energy Prod:' }}</span>
                   <span style="color:#4ade80; font-weight: bold;">+{{ getUnitEnergyStats(unit).energyProd.toLocaleString() }} E/s</span>
+                </div>
+                <!-- Metal production in tooltip -->
+                <div v-if="getUnitMetalStats(unit)?.metalProd > 0" style="display:flex; justify-content:space-between; width: 100%;">
+                  <span style="color:var(--text-dim);">{{ lang === 'ru' ? 'Металл (выработка):' : 'Metal Prod:' }}</span>
+                  <span style="color:#4ade80; font-weight: bold;">+{{ getUnitMetalStats(unit).metalProd.toLocaleString() }} M/s</span>
                 </div>
                 <!-- Energy consumption in tooltip -->
                 <div v-if="getUnitEnergyStats(unit)?.energyCons > 0" style="display:flex; justify-content:space-between; width: 100%;">
@@ -3544,6 +3733,11 @@ const vFocus = {
                 <span class="stat-label">{{ lang === 'ru' ? 'Выработка эн.' : 'Energy Prod.' }}:</span>
                 <span class="stat-value" style="color: #4ade80;">+{{ (getUnitEnergyStats(getUnitById(placed.unitId)).energyProd * placed.count).toLocaleString() }} E/s</span>
               </div>
+              <!-- Metal Production -->
+              <div class="stat-row" v-if="getUnitMetalStats(getUnitById(placed.unitId))?.metalProd > 0">
+                <span class="stat-label">{{ lang === 'ru' ? 'Выработка мет.' : 'Metal Prod.' }}:</span>
+                <span class="stat-value" style="color: #4ade80;">+{{ (getUnitMetalStats(getUnitById(placed.unitId)).metalProd * placed.count).toLocaleString() }} M/s</span>
+              </div>
               <!-- Energy Consumption -->
               <div class="stat-row" v-if="getUnitEnergyStats(getUnitById(placed.unitId))?.energyCons > 0">
                 <span class="stat-label">{{ lang === 'ru' ? 'Потребление эн.' : 'Energy Cons.' }}:</span>
@@ -3668,19 +3862,19 @@ const vFocus = {
               </div>
             </div>
 
-            <div class="timeline-columns-wrap" @mousedown.stop>
+            <div class="timeline-columns-wrap">
               <div 
                 v-for="col in panel.columns" 
                 :key="col.id"
                 class="timeline-col"
                 :style="{
                   width: `${col.width || 250}px`,
-                  height: `${col.height || 420}px`
+                  height: `${panel.height || col.height || 420}px`
                 }"
                 @dragover.prevent
               >
                 <div class="timeline-col-header">
-                  <span style="font-size: 0.65rem; color: var(--text-dim);">
+                  <span style="font-size: 0.8rem; color: var(--text-dim); font-weight: bold;">
                     {{ lang === 'ru' ? 'Мин:' : 'Min:' }}
                   </span>
                   <input 
@@ -3807,6 +4001,11 @@ const vFocus = {
                         <span class="stat-label">{{ lang === 'ru' ? 'Выработка эн.' : 'Energy Prod.' }}:</span>
                         <span class="stat-value" style="color: #4ade80;">+{{ (getUnitEnergyStats(getUnitById(placed.unitId)).energyProd * placed.count).toLocaleString() }} E/s</span>
                       </div>
+                      <!-- Metal Production -->
+                      <div class="stat-row" v-if="getUnitMetalStats(getUnitById(placed.unitId))?.metalProd > 0">
+                        <span class="stat-label">{{ lang === 'ru' ? 'Выработка мет.' : 'Metal Prod.' }}:</span>
+                        <span class="stat-value" style="color: #4ade80;">+{{ (getUnitMetalStats(getUnitById(placed.unitId)).metalProd * placed.count).toLocaleString() }} M/s</span>
+                      </div>
                       <!-- Energy Consumption -->
                       <div class="stat-row" v-if="getUnitEnergyStats(getUnitById(placed.unitId))?.energyCons > 0">
                         <span class="stat-label">{{ lang === 'ru' ? 'Потребление эн.' : 'Energy Cons.' }}:</span>
@@ -3897,16 +4096,34 @@ const vFocus = {
                 <!-- Column Summary (Metal and Energy Cost) -->
                 <div class="timeline-col-summary" v-if="placedUnits.filter(u => u.timelineColId === col.id).length > 0">
                   <div style="display:flex; justify-content:space-between; width:100%;">
-                    <span>{{ lang === 'ru' ? 'Металл:' : 'Metal:' }}</span>
+                    <span>{{ lang === 'ru' ? 'Металл (цена):' : 'Metal (Cost):' }}</span>
                     <span style="color:var(--color-orange); font-weight:bold;">
                       {{ placedUnits.filter(u => u.timelineColId === col.id).reduce((sum, item) => sum + (getUnitById(item.unitId)?.cost || 0) * item.count, 0).toLocaleString() }}
                     </span>
                   </div>
                   <div style="display:flex; justify-content:space-between; width:100%;">
-                    <span>{{ lang === 'ru' ? 'Энергия:' : 'Energy:' }}</span>
+                    <span>{{ lang === 'ru' ? 'Энергия (цена):' : 'Energy (Cost):' }}</span>
                     <span style="color:var(--color-cyan); font-weight:bold;">
                       {{ placedUnits.filter(u => u.timelineColId === col.id).reduce((sum, item) => sum + ((getUnitById(item.unitId)?.cost || 0) * 25) * item.count, 0).toLocaleString() }}
                     </span>
+                  </div>
+                  
+                  <div v-if="getColumnMetalProd(col.id) > 0" style="display:flex; justify-content:space-between; width:100%; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 2px; margin-top: 2px;">
+                    <span>{{ lang === 'ru' ? 'Выработка M:' : 'Metal Prod:' }}</span>
+                    <span style="color:#4ade80; font-weight:bold;">+{{ getColumnMetalProd(col.id).toLocaleString() }} m/s</span>
+                  </div>
+                  <div v-if="getColumnMetalCons(col.id) > 0" style="display:flex; justify-content:space-between; width:100%;" :style="getColumnMetalProd(col.id) === 0 ? { borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '2px', marginTop: '2px' } : {}">
+                    <span>{{ lang === 'ru' ? 'Потребление M:' : 'Metal Cons:' }}</span>
+                    <span style="color:#f87171; font-weight:bold;">-{{ getColumnMetalCons(col.id).toLocaleString() }} m/s</span>
+                  </div>
+                  
+                  <div v-if="getColumnEnergyProd(col.id) > 0" style="display:flex; justify-content:space-between; width:100%;" :style="getColumnMetalProd(col.id) === 0 && getColumnMetalCons(col.id) === 0 ? { borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '2px', marginTop: '2px' } : {}">
+                    <span>{{ lang === 'ru' ? 'Выработка E:' : 'Energy Prod:' }}</span>
+                    <span style="color:#4ade80; font-weight:bold;">+{{ getColumnEnergyProd(col.id).toLocaleString() }} E/s</span>
+                  </div>
+                  <div v-if="getColumnEnergyCons(col.id) > 0" style="display:flex; justify-content:space-between; width:100%;">
+                    <span>{{ lang === 'ru' ? 'Потребление E:' : 'Energy Cons:' }}</span>
+                    <span style="color:#f87171; font-weight:bold;">-{{ getColumnEnergyCons(col.id).toLocaleString() }} E/s</span>
                   </div>
                 </div>
 
@@ -4170,6 +4387,7 @@ const vFocus = {
 
     <!-- Animated Battle Simulation Modal -->
     <SimulationModal
+      ref="bfTrack"
       :animSim="animSim"
       :lang="lang"
       :t="t"
@@ -4193,9 +4411,10 @@ const vFocus = {
     <CounterModal
       :show="showCounterModal"
       :counterRatings="counterRatings"
+      :loading="counterRatingsLoading"
       :lang="lang"
       :t="t"
-      :hardestUnitId="counterSelectedNodeUuid ? (getElement(counterSelectedNodeUuid)?.type === 'unit' ? hardestCountersCache[getElement(counterSelectedNodeUuid).unitId] : counterRatings[0]?.unitId) : null"
+      :hardestUnitId="counterSelectedNodeUuid ? (getElement(counterSelectedNodeUuid)?.type === 'unit' ? hardestCountersCache[getElement(counterSelectedNodeUuid).unitId]?.bestCounterId : counterRatings[0]?.unitId) : null"
       @close="showCounterModal = false"
       @spawn="spawnCounterOpponent"
     />
@@ -4301,6 +4520,11 @@ const vFocus = {
               <div class="stat-card" v-if="getUnitEnergyStats(unitDetailSpec)?.energyProd > 0">
                 <span class="stat-card-label">{{ lang === 'ru' ? 'Выработка энергии' : 'Energy Production' }}</span>
                 <span class="stat-card-val" style="color: #4ade80;">+{{ getUnitEnergyStats(unitDetailSpec).energyProd.toLocaleString() }} E/s</span>
+              </div>
+              <!-- Metal Production -->
+              <div class="stat-card" v-if="getUnitMetalStats(unitDetailSpec)?.metalProd > 0">
+                <span class="stat-card-label">{{ lang === 'ru' ? 'Выработка металла' : 'Metal Production' }}</span>
+                <span class="stat-card-val" style="color: #4ade80;">+{{ getUnitMetalStats(unitDetailSpec).metalProd.toLocaleString() }} M/s</span>
               </div>
               <!-- Energy Consumption -->
               <div class="stat-card" v-if="getUnitEnergyStats(unitDetailSpec)?.energyCons > 0">

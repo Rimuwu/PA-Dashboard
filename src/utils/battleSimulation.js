@@ -1,13 +1,31 @@
-// Helper to normalize layer names across different PA spec versions
 export const normalizeLayer = (l) => {
   if (!l) return '';
-  const str = String(l).toLowerCase().replace('wl_', '').replace('horizontal', '');
+  const str = String(l).toLowerCase();
   if (str.includes('orbital')) return 'orbital';
   if (str.includes('air')) return 'air';
+  if (str.includes('underwater') || str.includes('seafloor')) return 'seafloor';
+  if (str.includes('anysurface') || str.includes('anyhorizontalgroundorwatersurface')) return 'anysurface';
   if (str.includes('land') || str.includes('ground') || str.includes('surface')) return 'land';
-  if (str.includes('water') || (str.includes('sea') && !str.includes('seafloor'))) return 'sea';
-  if (str.includes('seafloor') || str.includes('underwater')) return 'seafloor';
-  return str;
+  if (str.includes('water') || str.includes('sea')) return 'sea';
+  return str.replace('wl_', '').replace('horizontal', '');
+};
+
+export const getLayerAltitude = (layers) => {
+  if (!layers || layers.length === 0) return 0;
+  let maxAlt = 0;
+  layers.forEach(l => {
+    const norm = normalizeLayer(l);
+    let alt = 0;
+    if (norm === 'orbital') alt = 450;
+    else if (norm === 'air') alt = 80;
+    else if (norm === 'seafloor') alt = -60;
+    else if (norm === 'sea') alt = 0;
+    else if (norm === 'land') alt = 0;
+    if (Math.abs(alt) > Math.abs(maxAlt)) {
+      maxAlt = alt;
+    }
+  });
+  return maxAlt;
 };
 
 export const canTargetLayer = (wpnTargetLayers, unitLayers) => {
@@ -17,7 +35,7 @@ export const canTargetLayer = (wpnTargetLayers, unitLayers) => {
   const normalizedUnitLayers = unitLayers.map(normalizeLayer);
   return wpnTargetLayers.some(wpnL => {
     const normWpn = normalizeLayer(wpnL);
-    if (normWpn === 'anysurface' || normWpn === 'anyhorizontalgroundorwatersurface') {
+    if (normWpn === 'anysurface') {
       return normalizedUnitLayers.includes('land') || normalizedUnitLayers.includes('sea');
     }
     return normalizedUnitLayers.includes(normWpn);
@@ -77,8 +95,25 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
         hp: stack.health,
         maxHp: stack.health,
         cost: stack.cost,
-        weapons: spec?.weapons || [],
+        weapons: spec?.weapons ? spec.weapons.map((w, wIdx) => ({
+          name: w.name || `Weapon #${wIdx + 1}`,
+          dps: w.dps || 0,
+          damage: w.damage || 0,
+          splash_damage: w.splash_damage || 0,
+          splash_radius: w.splash_radius || 0,
+          rate_of_fire: w.rate_of_fire || 1.0,
+          range: w.range || 100,
+          min_range: w.min_range || 0,
+          muzzle_velocity: w.muzzle_velocity || 0,
+          max_velocity: w.max_velocity || 0,
+          flight_type: w.flight_type || '',
+          target_layers: w.target_layers || [],
+          auto_attack: w.auto_attack,
+          manual_fire: w.manual_fire,
+          nextFireTime: 0
+        })) : [],
         layers: stack.layers,
+        altitude: getLayerAltitude(stack.layers),
         move_speed: spec?.move_speed || 0,
         x: pos2d.x - i * 8,
         y: pos2d.y + (i % 3 - 1) * 10,
@@ -110,8 +145,25 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
         hp: stack.health,
         maxHp: stack.health,
         cost: stack.cost,
-        weapons: spec?.weapons || [],
+        weapons: spec?.weapons ? spec.weapons.map((w, wIdx) => ({
+          name: w.name || `Weapon #${wIdx + 1}`,
+          dps: w.dps || 0,
+          damage: w.damage || 0,
+          splash_damage: w.splash_damage || 0,
+          splash_radius: w.splash_radius || 0,
+          rate_of_fire: w.rate_of_fire || 1.0,
+          range: w.range || 100,
+          min_range: w.min_range || 0,
+          muzzle_velocity: w.muzzle_velocity || 0,
+          max_velocity: w.max_velocity || 0,
+          flight_type: w.flight_type || '',
+          target_layers: w.target_layers || [],
+          auto_attack: w.auto_attack,
+          manual_fire: w.manual_fire,
+          nextFireTime: 0
+        })) : [],
         layers: stack.layers,
+        altitude: getLayerAltitude(stack.layers),
         move_speed: spec?.move_speed || 0,
         x: pos2d.x + i * 8,
         y: pos2d.y + (i % 3 - 1) * 10,
@@ -181,41 +233,90 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
 
   let wpnDmgAccA = {};
   let wpnDmgAccB = {};
+  let damageQueue = [];
   
   while (aList.length > 0 && bList.length > 0 && time < maxSimTime) {
     const logStartIdx = log.length;
     
-    aList.forEach(u => u.firingAt = null);
-    bList.forEach(u => u.firingAt = null);
+    aList.forEach(u => { u.firingAt = null; u.fires = (u.fires || []).filter(f => time < f.expireTime); });
+    bList.forEach(u => { u.firingAt = null; u.fires = (u.fires || []).filter(f => time < f.expireTime); });
     
     // 1. Team A actions (fire or move)
     aList.forEach(attacker => {
       if (attacker.hp <= 0) return;
       
-      const weapons = attacker.weapons && attacker.weapons.length > 0 
+      const rawWeapons = attacker.weapons && attacker.weapons.length > 0 
         ? attacker.weapons 
         : [{ name: 'Default Gun', dps: 10, range: 100, target_layers: ['WL_LandHorizontal', 'WL_WaterSurface'] }];
+      const weapons = rawWeapons.filter(w => !w.manual_fire && w.auto_attack !== false);
       
       let fired = false;
+      let shortestTargetingRange = Infinity;
       
       weapons.forEach(wpn => {
         if (wpn.dps <= 0) return;
         
+        if (wpn.nextFireTime === undefined) {
+          wpn.nextFireTime = 0;
+        }
+        if (time < wpn.nextFireTime) {
+          return;
+        }
+        
         const targets = bList.filter(t => t.hp > 0 && canTargetLayer(wpn.target_layers, t.layers));
         if (targets.length > 0) {
-          targets.sort((a2, b2) => {
-            const dA = Math.hypot(attacker.x - a2.x, (attacker.y||0) - (a2.y||0));
-            const dB = Math.hypot(attacker.x - b2.x, (attacker.y||0) - (b2.y||0));
-            return dA - dB;
-          });
-          const target = targets[0];
-          const dist2d = Math.hypot(attacker.x - target.x, (attacker.y||0) - (target.y||0));
+          if (wpn.range < shortestTargetingRange) {
+            shortestTargetingRange = wpn.range;
+          }
+          let target = targets[0];
+          let minDist = Math.hypot(attacker.x - target.x, (attacker.y||0) - (target.y||0));
+          for (let k = 1; k < targets.length; k++) {
+            const t = targets[k];
+            const dist = Math.hypot(attacker.x - t.x, (attacker.y||0) - (t.y||0));
+            if (dist < minDist) {
+              minDist = dist;
+              target = t;
+            }
+          }
+          const dist2d = minDist;
           
           if (dist2d <= wpn.range) {
             fired = true;
+            
+            const attackerAlt = attacker.altitude || 0;
+            const targetAlt = target.altitude || 0;
+            const altDiff = targetAlt - attackerAlt;
+            const dist3d = Math.hypot(attacker.x - target.x, (attacker.y||0) - (target.y||0), altDiff);
+            
+            const isDiscrete = wpn.rate_of_fire > 0;
+            const dmg = isDiscrete ? (wpn.damage || (wpn.dps / wpn.rate_of_fire)) : (wpn.dps * tick);
+            
             attacker.firingAt = target.id;
-            const dmg = wpn.dps * tick;
-            target.hp -= dmg;
+            attacker.fires.push({ targetId: target.id, wpnName: wpn.name, range: wpn.range, expireTime: time + 0.3 });
+            
+            let flightTime = 0;
+            if (wpn.muzzle_velocity && wpn.muzzle_velocity < 400) {
+              flightTime = dist3d / wpn.muzzle_velocity;
+              if (wpn.flight_type === 'Staged') {
+                flightTime += 1.5;
+              } else if (wpn.flight_type === 'Seeking') {
+                flightTime += 0.5;
+              }
+            }
+            
+            damageQueue.push({
+              spawnTime: time,
+              applyTime: time + flightTime,
+              startX: attacker.x,
+              startY: attacker.y || 0,
+              targetId: target.id,
+              damage: dmg,
+              splashDamage: wpn.splash_damage ? wpn.splash_damage : 0,
+              splashRadius: wpn.splash_radius || 0,
+              team: 'A'
+            });
+            
+            wpn.nextFireTime = time + (isDiscrete ? (1.0 / wpn.rate_of_fire) : tick);
             
             const wKey = `${wpn.name}__${target.name}`;
             if (!wpnDmgAccA[wKey]) {
@@ -226,20 +327,34 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
         }
       });
       
-      if (!fired && attacker.move_speed > 0) {
+      if (attacker.fires && attacker.fires.length > 0) {
+        attacker.firingAt = attacker.fires[0].targetId;
+      }
+      
+      let shouldMove = !fired;
+      if (attacker.move_speed > 0) {
         const enemies = bList.filter(e => e.hp > 0);
         if (enemies.length > 0) {
-          enemies.sort((a2, b2) => {
-            const dA = Math.hypot(attacker.x - a2.x, (attacker.y||0) - (a2.y||0));
-            const dB = Math.hypot(attacker.x - b2.x, (attacker.y||0) - (b2.y||0));
-            return dA - dB;
-          });
-          const closest = enemies[0];
-          const dx = closest.x - attacker.x;
-          const dy = (closest.y||0) - (attacker.y||0);
-          const dist2d = Math.hypot(dx, dy) || 1;
-          const dir = Math.sign(dx);
-          attacker.x += dir * attacker.move_speed * tick;
+          let closest = enemies[0];
+          let minDist = Math.hypot(attacker.x - closest.x, (attacker.y||0) - (closest.y||0));
+          for (let k = 1; k < enemies.length; k++) {
+            const e = enemies[k];
+            const dist = Math.hypot(attacker.x - e.x, (attacker.y||0) - (e.y||0));
+            if (dist < minDist) {
+              minDist = dist;
+              closest = e;
+            }
+          }
+          if (fired && shortestTargetingRange !== Infinity) {
+            if (minDist > shortestTargetingRange) {
+              shouldMove = true;
+            }
+          }
+          if (shouldMove) {
+            const dx = closest.x - attacker.x;
+            const dir = Math.sign(dx);
+            attacker.x += dir * attacker.move_speed * tick;
+          }
         }
       }
     });
@@ -248,30 +363,78 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
     bList.forEach(attacker => {
       if (attacker.hp <= 0) return;
       
-      const weapons = attacker.weapons && attacker.weapons.length > 0 
+      const rawWeapons = attacker.weapons && attacker.weapons.length > 0 
         ? attacker.weapons 
         : [{ name: 'Default Gun', dps: 10, range: 100, target_layers: ['WL_LandHorizontal', 'WL_WaterSurface'] }];
+      const weapons = rawWeapons.filter(w => !w.manual_fire && w.auto_attack !== false);
       
       let fired = false;
+      let shortestTargetingRange = Infinity;
       
       weapons.forEach(wpn => {
         if (wpn.dps <= 0) return;
         
+        if (wpn.nextFireTime === undefined) {
+          wpn.nextFireTime = 0;
+        }
+        if (time < wpn.nextFireTime) {
+          return;
+        }
+        
         const targets = aList.filter(t => t.hp > 0 && canTargetLayer(wpn.target_layers, t.layers));
         if (targets.length > 0) {
-          targets.sort((a2, b2) => {
-            const dA = Math.hypot(attacker.x - a2.x, (attacker.y||0) - (a2.y||0));
-            const dB = Math.hypot(attacker.x - b2.x, (attacker.y||0) - (b2.y||0));
-            return dA - dB;
-          });
-          const target = targets[0];
-          const dist2d = Math.hypot(attacker.x - target.x, (attacker.y||0) - (target.y||0));
+          if (wpn.range < shortestTargetingRange) {
+            shortestTargetingRange = wpn.range;
+          }
+          let target = targets[0];
+          let minDist = Math.hypot(attacker.x - target.x, (attacker.y||0) - (target.y||0));
+          for (let k = 1; k < targets.length; k++) {
+            const t = targets[k];
+            const dist = Math.hypot(attacker.x - t.x, (attacker.y||0) - (t.y||0));
+            if (dist < minDist) {
+              minDist = dist;
+              target = t;
+            }
+          }
+          const dist2d = minDist;
           
           if (dist2d <= wpn.range) {
             fired = true;
+            
+            const attackerAlt = attacker.altitude || 0;
+            const targetAlt = target.altitude || 0;
+            const altDiff = targetAlt - attackerAlt;
+            const dist3d = Math.hypot(attacker.x - target.x, (attacker.y||0) - (target.y||0), altDiff);
+            
+            const isDiscrete = wpn.rate_of_fire > 0;
+            const dmg = isDiscrete ? (wpn.damage || (wpn.dps / wpn.rate_of_fire)) : (wpn.dps * tick);
+            
             attacker.firingAt = target.id;
-            const dmg = wpn.dps * tick;
-            target.hp -= dmg;
+            attacker.fires.push({ targetId: target.id, wpnName: wpn.name, range: wpn.range, expireTime: time + 0.3 });
+            
+            let flightTime = 0;
+            if (wpn.muzzle_velocity && wpn.muzzle_velocity < 400) {
+              flightTime = dist3d / wpn.muzzle_velocity;
+              if (wpn.flight_type === 'Staged') {
+                flightTime += 1.5;
+              } else if (wpn.flight_type === 'Seeking') {
+                flightTime += 0.5;
+              }
+            }
+            
+            damageQueue.push({
+              spawnTime: time,
+              applyTime: time + flightTime,
+              startX: attacker.x,
+              startY: attacker.y || 0,
+              targetId: target.id,
+              damage: dmg,
+              splashDamage: wpn.splash_damage ? wpn.splash_damage : 0,
+              splashRadius: wpn.splash_radius || 0,
+              team: 'B'
+            });
+            
+            wpn.nextFireTime = time + (isDiscrete ? (1.0 / wpn.rate_of_fire) : tick);
             
             const wKey = `${wpn.name}__${target.name}`;
             if (!wpnDmgAccB[wKey]) {
@@ -282,21 +445,61 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
         }
       });
       
-      if (!fired && attacker.move_speed > 0) {
+      if (attacker.fires && attacker.fires.length > 0) {
+        attacker.firingAt = attacker.fires[0].targetId;
+      }
+      
+      let shouldMove = !fired;
+      if (attacker.move_speed > 0) {
         const enemies = aList.filter(e => e.hp > 0);
         if (enemies.length > 0) {
-          enemies.sort((a2, b2) => {
-            const dA = Math.hypot(attacker.x - a2.x, (attacker.y||0) - (a2.y||0));
-            const dB = Math.hypot(attacker.x - b2.x, (attacker.y||0) - (b2.y||0));
-            return dA - dB;
-          });
-          const closest = enemies[0];
-          const dx = closest.x - attacker.x;
-          const dir = Math.sign(dx);
-          attacker.x += dir * attacker.move_speed * tick;
+          let closest = enemies[0];
+          let minDist = Math.hypot(attacker.x - closest.x, (attacker.y||0) - (closest.y||0));
+          for (let k = 1; k < enemies.length; k++) {
+            const e = enemies[k];
+            const dist = Math.hypot(attacker.x - e.x, (attacker.y||0) - (e.y||0));
+            if (dist < minDist) {
+              minDist = dist;
+              closest = e;
+            }
+          }
+          if (fired && shortestTargetingRange !== Infinity) {
+            if (minDist > shortestTargetingRange) {
+              shouldMove = true;
+            }
+          }
+          if (shouldMove) {
+            const dx = closest.x - attacker.x;
+            const dir = Math.sign(dx);
+            attacker.x += dir * attacker.move_speed * tick;
+          }
         }
       }
     });
+    
+    // 3. Process damage queue
+    damageQueue.forEach(event => {
+      if (time >= event.applyTime) {
+        const enemyList = event.team === 'A' ? bList : aList;
+        const target = enemyList.find(u => u.id === event.targetId);
+        if (target && target.hp > 0) {
+          target.hp -= event.damage;
+          
+          // Apply splash damage
+          if (event.splashRadius > 0 && event.splashDamage > 0) {
+            enemyList.forEach(u => {
+              if (u.id !== target.id && u.hp > 0) {
+                const dist = Math.hypot(u.x - target.x, (u.y||0) - (target.y||0));
+                if (dist <= event.splashRadius) {
+                  u.hp -= event.splashDamage;
+                }
+              }
+            });
+          }
+        }
+      }
+    });
+    damageQueue = damageQueue.filter(event => time < event.applyTime);
     
     const deadB = bList.filter(t => t.hp <= 0);
     const deadA = aList.filter(t => t.hp <= 0);
@@ -343,8 +546,22 @@ export const runBattleSimulation = (nodeA, nodeB, conn, simSettingsVal, langVal,
           time: Number(time.toFixed(1)),
           aHp: aList.reduce((sum, u) => sum + u.hp, 0),
           bHp: bList.reduce((sum, u) => sum + u.hp, 0),
-          aUnits: aList.map(u => ({ id: u.id, name: u.name, icon: u.icon, hp: u.hp, maxHp: u.maxHp, x: u.x, y: u.y || 0, firingAt: u.firingAt, maxRange: u.maxRange, visionRadius: u.visionRadius, radarRadius: u.radarRadius, weapons: u.weapons ? u.weapons.map(w => ({ name: w.name, range: w.range })) : [] })),
-          bUnits: bList.map(u => ({ id: u.id, name: u.name, icon: u.icon, hp: u.hp, maxHp: u.maxHp, x: u.x, y: u.y || 0, firingAt: u.firingAt, maxRange: u.maxRange, visionRadius: u.visionRadius, radarRadius: u.radarRadius, weapons: u.weapons ? u.weapons.map(w => ({ name: w.name, range: w.range })) : [] })),
+          aUnits: aList.map(u => ({ id: u.id, name: u.name, icon: u.icon, hp: u.hp, maxHp: u.maxHp, x: u.x, y: u.y || 0, firingAt: u.firingAt, fires: u.fires || [], maxRange: u.maxRange, visionRadius: u.visionRadius, radarRadius: u.radarRadius, weapons: u.weapons ? u.weapons.map(w => ({ name: w.name, range: w.range })) : [] })),
+          bUnits: bList.map(u => ({ id: u.id, name: u.name, icon: u.icon, hp: u.hp, maxHp: u.maxHp, x: u.x, y: u.y || 0, firingAt: u.firingAt, fires: u.fires || [], maxRange: u.maxRange, visionRadius: u.visionRadius, radarRadius: u.radarRadius, weapons: u.weapons ? u.weapons.map(w => ({ name: w.name, range: w.range })) : [] })),
+          projectiles: damageQueue.map(p => {
+            const duration = p.applyTime - p.spawnTime;
+            const elapsed = time - p.spawnTime;
+            const progress = duration > 0 ? Math.min(1, Math.max(0, elapsed / duration)) : 1;
+            const targetList = p.team === 'A' ? bList : aList;
+            const target = targetList.find(u => u.id === p.targetId);
+            const endX = target ? target.x : p.startX;
+            const endY = target ? (target.y || 0) : p.startY;
+            return {
+              x: p.startX + (endX - p.startX) * progress,
+              y: p.startY + (endY - p.startY) * progress,
+              team: p.team
+            };
+          }),
           newLogs
         });
       }
