@@ -617,30 +617,79 @@ const getDefaultNotes = () => {
     cy = (rect.height / 2 - canvasOffset.value.y) / canvasZoom.value + 25000;
   }
   
-  const note1X = cx - 340;
-  const note2X = cx + 20;
-  const noteY = cy - 90;
-  
+  const col1X = cx - 340;
+  const col2X = cx + 20;
+  const row1Y = cy - 390;
+  const row2Y = cy - 90;
+  const row3Y = cy + 310;
+
   return [
+    // Column 1 (Russian)
     {
       uuid: 'default-note-ru',
-      x: snapToGrid.value ? Math.round(note1X / 40) * 40 : note1X,
-      y: snapToGrid.value ? Math.round(noteY / 40) * 40 : noteY,
+      x: snapToGrid.value ? Math.round(col1X / 40) * 40 : col1X,
+      y: snapToGrid.value ? Math.round(row1Y / 40) * 40 : row1Y,
       width: 320,
-      height: 180,
-      text: "# Понравился проект?\nПожалуйста, поставьте ⭐ [звезду на GitHub](https://github.com/Rimuwu/PA-Dashboard)!\nЭто очень поможет развитию проекта.",
+      height: 250,
+      text: "# Понравился проект?\nПожалуйста, поставьте ⭐ [звезду на GitHub](https://github.com/Rimuwu/PA-Dashboard)!\nЭто очень поможет развитию проекта.\n\n⚙️ *Язык интерфейса можно сменить с помощью шестерёнки в правом верхнем углу.*",
       color: 'rgba(22, 78, 99, 0.45)', // Cyan glassmorphism
       zIndex: 10,
       isEditing: false
     },
     {
-      uuid: 'default-note-en',
-      x: snapToGrid.value ? Math.round(note2X / 40) * 40 : note2X,
-      y: snapToGrid.value ? Math.round(noteY / 40) * 40 : noteY,
+      uuid: 'default-note-info-ru',
+      x: snapToGrid.value ? Math.round(col1X / 40) * 40 : col1X,
+      y: snapToGrid.value ? Math.round(row2Y / 40) * 40 : row2Y,
       width: 320,
-      height: 180,
-      text: "# Like the project?\nPlease leave a ⭐ [star on GitHub](https://github.com/Rimuwu/PA-Dashboard)!\nIt really helps the project grow.",
+      height: 350,
+      text: "# Общая информация\n- **PA: Dashboard** — интерактивный холст по Planetary Annihilation: Titans.\n- Сравнивайте характеристики юнитов в таблице.\n- Моделируйте бои 1 на 1 и групповые сражения.\n- Импортируйте и экспортируйте ваши схемы в JSON.",
+      color: 'rgba(20, 83, 45, 0.45)', // Green glassmorphism
+      zIndex: 10,
+      isEditing: false
+    },
+    {
+      uuid: 'default-note-hotkeys-ru',
+      x: snapToGrid.value ? Math.round(col1X / 40) * 40 : col1X,
+      y: snapToGrid.value ? Math.round(row3Y / 40) * 40 : row3Y,
+      width: 320,
+      height: 530,
+      text: "# Горячие клавиши\n- **Панорамирование (Pan)**: Зажмите среднюю кнопку мыши (колесо) или левую кнопку мыши на пустом месте холста и перетащите.\n- **Масштаб (Zoom)**: Прокрутка колесиком мыши (Scroll).\n- **Выделение поштучно**: Зажмите `Shift` и кликайте по карточкам юнитов.\n- **Копирование**: Правый клик на карте -> *Дублировать карточку*.\n- **Создание связи**: Зажмите мышь на порт справа/слева карточки и протяните к другому юниту/области.\n- **Контекстное меню**: Правый клик на любой карточке, области или пустом месте холста открывает быстрые действия.",
+      color: 'rgba(120, 53, 4, 0.45)', // Orange glassmorphism
+      zIndex: 10,
+      isEditing: false
+    },
+    
+    // Column 2 (English)
+    {
+      uuid: 'default-note-en',
+      x: snapToGrid.value ? Math.round(col2X / 40) * 40 : col2X,
+      y: snapToGrid.value ? Math.round(row1Y / 40) * 40 : row1Y,
+      width: 320,
+      height: 250,
+      text: "# Like the project?\nPlease leave a ⭐ [star on GitHub](https://github.com/Rimuwu/PA-Dashboard)!\nIt really helps the project grow.\n\n⚙️ *You can change the interface language using the gear icon in the top right.*",
       color: 'rgba(99, 22, 78, 0.45)', // Magenta glassmorphism
+      zIndex: 10,
+      isEditing: false
+    },
+    {
+      uuid: 'default-note-info-en',
+      x: snapToGrid.value ? Math.round(col2X / 40) * 40 : col2X,
+      y: snapToGrid.value ? Math.round(row2Y / 40) * 40 : row2Y,
+      width: 320,
+      height: 350,
+      text: "# General Info\n- **PA: Dashboard** — an interactive canvas for Planetary Annihilation: Titans.\n- Compare unit stats, simulate battles in real-time.\n- Build chain production and plan matchups.\n- Save and load your layout configurations using JSON.",
+      color: 'rgba(20, 83, 45, 0.45)', // Green glassmorphism
+      zIndex: 10,
+      isEditing: false
+    },
+    {
+      uuid: 'default-note-hotkeys-en',
+      x: snapToGrid.value ? Math.round(col2X / 40) * 40 : col2X,
+      y: snapToGrid.value ? Math.round(row3Y / 40) * 40 : row3Y,
+      width: 320,
+      height: 470,
+      text: "# Hotkeys & Shortcuts\n**Pan Canvas**: Hold Middle Mouse Button (scroll wheel) or Left Mouse Button on empty canvas space and drag.\n\n**Zoom Canvas**: Use the mouse scroll wheel.\n\n**Multi-Select**: Hold `Shift` while clicking individual unit cards.\n\n**Duplicate Card**: Right-click on a card -> select *Duplicate card*.\n\n**Create Link**: Drag from a card connector port (left/right edge) and drop onto another unit or group area.\n\n**Context Menu**: Right-click on any card, area, or empty canvas space to access quick action menus.",
+      color: 'rgba(120, 53, 4, 0.45)', // Orange glassmorphism
       zIndex: 10,
       isEditing: false
     }
@@ -712,7 +761,7 @@ const addNewNote = () => {
 };
 
 const editNote = (note) => {
-  if (note.uuid === 'default-note-ru' || note.uuid === 'default-note-en') return;
+  if (note.uuid.startsWith('default-note')) return;
   note.isEditing = true;
   nextTick(() => {
     const textareas = document.querySelectorAll('.note-textarea');
@@ -725,7 +774,7 @@ const editNote = (note) => {
 };
 
 const deleteNote = (noteUuid) => {
-  if (noteUuid === 'default-note-ru' || noteUuid === 'default-note-en') return;
+  if (noteUuid.startsWith('default-note')) return;
   pushToUndoStack();
   notes.value = notes.value.filter(n => n.uuid !== noteUuid);
   saveToLocalStorage();
@@ -798,7 +847,7 @@ const insertFormatting = (noteUuid, type) => {
 };
 
 const onNoteContextMenu = (note, e) => {
-  if (note.uuid === 'default-note-ru' || note.uuid === 'default-note-en') return;
+  if (note.uuid.startsWith('default-note')) return;
   const rect = canvasRef.value.getBoundingClientRect();
   const canvasX = (e.clientX - rect.left - canvasOffset.value.x) / canvasZoom.value + 25000;
   const canvasY = (e.clientY - rect.top - canvasOffset.value.y) / canvasZoom.value + 25000;
@@ -814,7 +863,7 @@ const onNoteContextMenu = (note, e) => {
 };
 
 const onNoteMousedown = (note, e) => {
-  if (note.uuid === 'default-note-ru' || note.uuid === 'default-note-en') {
+  if (note.uuid.startsWith('default-note')) {
     if (e.button === 1) {
       startPanning(e);
     }
