@@ -586,7 +586,7 @@ const isResizingArea = ref(false);
 const panStart = ref({ x: 0, y: 0 });
 
 // Localization
-const lang = ref('ru'); // default to 'ru'
+const lang = ref('en'); // default to 'en'
 
 // Grid & Snap options
 const gridEnabled = ref(true);
